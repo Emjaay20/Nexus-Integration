@@ -16,11 +16,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Determine integration name based on source (mock logic)
-        let integration = 'Unknown Integration';
-        if (source === 'shopify') integration = 'Shopify -> NetSuite';
-        else if (source === 'salesforce') integration = 'Salesforce -> Slack';
-        else if (source === 'arena') integration = 'Arena -> SAP';
-        else integration = `${source.charAt(0).toUpperCase() + source.slice(1)} Integration`;
+        // Determine integration ID based on source
+        let integration = 'unknown';
+        if (source === 'shopify') integration = 'ecommerce-sync';
+        else if (source === 'salesforce') integration = 'crm-updates';
+        else if (source === 'arena') integration = 'plm-erp';
+        else integration = source;
 
         // Create the log entry
         const log = await integrationService.addActivityLog({
