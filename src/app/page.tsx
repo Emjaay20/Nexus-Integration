@@ -66,7 +66,7 @@ export default function Home() {
 
       <footer className="bg-white border-t border-slate-200 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-          <p className="text-slate-400">Created for Luminovo Application • 2026</p>
+          <p className="text-slate-400">Created for Nexus-Integration • 2026</p>
         </div>
       </footer>
     </div>

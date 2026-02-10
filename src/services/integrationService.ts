@@ -42,6 +42,9 @@ export const integrationService = {
 
     addActivityLog: async (log: Omit<IntegrationLog, 'id' | 'time'>): Promise<IntegrationLog> => {
         try {
+            // Start a transaction-like approach (or just sequential queries for now)
+
+            // 1. Insert the log
             const result = await db.query(
                 `INSERT INTO activity_logs (event, integration_id, status, duration, payload, response, error) 
                  VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -55,6 +58,17 @@ export const integrationService = {
                     log.response ? JSON.stringify(log.response) : null,
                     log.error ? JSON.stringify(log.error) : null
                 ]
+            );
+
+            // 2. Update the parent integration status and last_run
+            // If log status is 'failure', set integration to 'error'. If 'success', set to 'healthy'.
+            const newStatus = log.status === 'failure' ? 'error' : 'healthy';
+
+            await db.query(
+                `UPDATE integrations 
+                 SET status = $1, last_run = NOW() 
+                 WHERE id = $2`,
+                [newStatus, log.integration]
             );
 
             const row = result.rows[0];

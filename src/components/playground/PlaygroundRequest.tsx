@@ -17,7 +17,7 @@ export function PlaygroundRequest({ onResponse }: PlaygroundRequestProps) {
   "event": "inventory.update",
   "source": "shopify",
   "payload": {
-    "sku": "LUM-001",
+    "sku": "NEXUS-001",
     "qty": 450
   }
 }`);
@@ -66,7 +66,7 @@ export function PlaygroundRequest({ onResponse }: PlaygroundRequestProps) {
                 <h2 className="font-semibold text-slate-900 flex items-center gap-2">
                     <Play className="w-4 h-4 text-indigo-500" /> Request Builder
                 </h2>
-                <div className="text-xs font-mono text-slate-400">api.luminovo.com/v1</div>
+                <div className="text-xs font-mono text-slate-400">api.nexus.com/v1</div>
             </div>
 
             <div className="p-6 space-y-6">

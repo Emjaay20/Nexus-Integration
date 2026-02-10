@@ -15,12 +15,11 @@ export default function IntegrationHubLayout({
     return (
         <div className="min-h-screen bg-slate-50 flex font-[family-name:var(--font-geist-sans)]">
             {/* Sidebar */}
-            <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col fixed h-full z-10">
+            <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col fixed top-16 bottom-0 z-10 border-t border-slate-800">
                 <div className="p-6 border-b border-slate-800">
-                    <Link href="/" className="font-bold text-xl text-white tracking-tight flex items-center gap-2">
-                        <Box className="w-6 h-6 text-indigo-500" />
-                        Integration<span className="text-indigo-400">Hub</span>
-                    </Link>
+                    <span className="font-bold text-sm text-slate-400 uppercase tracking-wider">
+                        Integration Hub
+                    </span>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-1">

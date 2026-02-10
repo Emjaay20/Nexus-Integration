@@ -18,7 +18,7 @@ export default function ApiPlaygroundPage() {
                 <header className="mb-10">
                     <div className="flex items-center gap-3 text-indigo-600 mb-2">
                         <Terminal className="w-6 h-6" />
-                        <span className="font-bold tracking-tight">LUMINOVO DEVELOPER</span>
+                        <span className="font-bold tracking-tight">NEXUS DEVELOPER</span>
                     </div>
                     <h1 className="text-3xl font-bold text-slate-900">API Playground</h1>
                     <p className="text-slate-500 mt-2 max-w-2xl">
