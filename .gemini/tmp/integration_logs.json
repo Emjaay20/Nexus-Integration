@@ -1,0 +1,80 @@
+[
+  {
+    "event": "inventory.update",
+    "integration": "Shopify -> NetSuite",
+    "status": "success",
+    "duration": "321ms",
+    "payload": "{\n  \"sku\": \"LUM-001\",\n  \"qty\": 450\n}",
+    "response": {
+      "status": 200,
+      "statusText": "OK",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    "id": 1770713459281,
+    "time": "Just now"
+  },
+  {
+    "id": 1,
+    "event": "Order Created",
+    "integration": "Shopify -> NetSuite",
+    "time": "Just now",
+    "status": "success",
+    "duration": "1.2s",
+    "payload": "{\n  \"order_id\": \"1001\",\n  \"total\": 120.00,\n  \"currency\": \"USD\"\n}",
+    "response": {
+      "status": 200,
+      "statusText": "OK",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    }
+  },
+  {
+    "id": 2,
+    "event": "Inventory Update",
+    "integration": "NetSuite -> Shopify",
+    "time": "2m ago",
+    "status": "success",
+    "duration": "450ms"
+  },
+  {
+    "id": 3,
+    "event": "Customer Sync",
+    "integration": "Salesforce -> Slack",
+    "time": "5m ago",
+    "status": "failure",
+    "duration": "420ms",
+    "error": {
+      "name": "Invalid Webhook Signature",
+      "message": "The signature provided in 'X-Slack-Signature' does not match the expected value.",
+      "code": "AUTH_ERROR"
+    },
+    "payload": "{\n  \"event\": \"customer.created\",\n  \"customer\": {\n    \"id\": \"ct_99210\",\n    \"email\": \"sarah.connor@example.com\"\n  }\n}",
+    "response": {
+      "status": 401,
+      "statusText": "Unauthorized",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Request-ID": "req_9920112"
+      }
+    }
+  },
+  {
+    "id": 4,
+    "event": "Product Import",
+    "integration": "Arena -> SAP",
+    "time": "12m ago",
+    "status": "success",
+    "duration": "2.3s"
+  },
+  {
+    "id": 5,
+    "event": "Order Fulfilled",
+    "integration": "Shopify -> NetSuite",
+    "time": "15m ago",
+    "status": "success",
+    "duration": "800ms"
+  }
+]
