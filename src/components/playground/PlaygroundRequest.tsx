@@ -104,6 +104,37 @@ export function PlaygroundRequest({ onResponse }: PlaygroundRequestProps) {
                     </div>
                 </div>
 
+                {/* Quick Actions */}
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setBody(JSON.stringify({
+                            event: "inventory.update",
+                            source: "shopify",
+                            status: "failure",
+                            payload: {
+                                error: "Connection timeout",
+                                retry_count: 3
+                            }
+                        }, null, 2))}
+                        className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded border border-red-100 hover:bg-red-100 transition-colors"
+                    >
+                        Load Failure Example
+                    </button>
+                    <button
+                        onClick={() => setBody(JSON.stringify({
+                            event: "inventory.update",
+                            source: "shopify",
+                            payload: {
+                                sku: "NEXUS-001",
+                                qty: 450
+                            }
+                        }, null, 2))}
+                        className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                    >
+                        Load Success Example
+                    </button>
+                </div>
+
                 <button
                     onClick={handleSend}
                     disabled={isLoading}

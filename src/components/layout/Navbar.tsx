@@ -12,8 +12,8 @@ export function Navbar() {
     // Let's show it everywhere for consistency as requested.
 
     const navItems = [
-        { name: 'Integration Hub', href: '/integration-hub', icon: Activity },
         { name: 'BOM Importer', href: '/bom-importer', icon: FileSpreadsheet },
+        { name: 'Integration Hub', href: '/integration-hub', icon: Activity },
         { name: 'Developer', href: '/developer/playground', icon: Terminal },
     ];
 
