@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, LayoutGrid, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, LayoutGrid, Settings, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -50,6 +50,13 @@ export default function IntegrationHubLayout({
                         label="Activity Logs"
                         href="/integration-hub/logs"
                         active={pathname?.startsWith('/integration-hub/logs')}
+                        collapsed={isCollapsed}
+                    />
+                    <NavItem
+                        icon={<BarChart3 className="w-5 h-5" />}
+                        label="Analytics"
+                        href="/integration-hub/analytics"
+                        active={pathname?.startsWith('/integration-hub/analytics')}
                         collapsed={isCollapsed}
                     />
                     <NavItem

@@ -126,5 +126,99 @@ export const integrationService = {
             console.error('Error fetching log by id:', error);
             return undefined;
         }
-    }
+    },
+
+    getEventsPerDay: async (days: number = 30): Promise<{ day: string; success: number; failure: number }[]> => {
+        try {
+            const result = await db.query(
+                `SELECT DATE(created_at) as day, status, COUNT(*)::int as count
+                 FROM activity_logs
+                 WHERE created_at > NOW() - INTERVAL '${days} days'
+                 GROUP BY day, status
+                 ORDER BY day`
+            );
+
+            // Pivot rows into { day, success, failure } format
+            const dayMap = new Map<string, { success: number; failure: number }>();
+            for (const row of result.rows) {
+                const dayStr = new Date(row.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                if (!dayMap.has(dayStr)) dayMap.set(dayStr, { success: 0, failure: 0 });
+                const entry = dayMap.get(dayStr)!;
+                if (row.status === 'success') entry.success = row.count;
+                else entry.failure = row.count;
+            }
+
+            return Array.from(dayMap.entries()).map(([day, counts]) => ({ day, ...counts }));
+        } catch (error) {
+            console.error('Error fetching events per day:', error);
+            return [];
+        }
+    },
+
+    getStatusBreakdown: async (): Promise<{ name: string; value: number; color: string }[]> => {
+        try {
+            const result = await db.query(
+                `SELECT status, COUNT(*)::int as count FROM activity_logs GROUP BY status`
+            );
+            return result.rows.map(row => ({
+                name: row.status === 'success' ? 'Success' : 'Failed',
+                value: row.count,
+                color: row.status === 'success' ? '#22c55e' : '#ef4444',
+            }));
+        } catch (error) {
+            console.error('Error fetching status breakdown:', error);
+            return [];
+        }
+    },
+
+    getIntegrationHealth: async (): Promise<{ integration: string; success: number; failure: number; total: number }[]> => {
+        try {
+            const result = await db.query(
+                `SELECT integration_id, status, COUNT(*)::int as count
+                 FROM activity_logs
+                 GROUP BY integration_id, status`
+            );
+
+            const intMap = new Map<string, { success: number; failure: number }>();
+            for (const row of result.rows) {
+                const id = row.integration_id || 'unknown';
+                if (!intMap.has(id)) intMap.set(id, { success: 0, failure: 0 });
+                const entry = intMap.get(id)!;
+                if (row.status === 'success') entry.success = row.count;
+                else entry.failure = row.count;
+            }
+
+            return Array.from(intMap.entries()).map(([integration, counts]) => ({
+                integration,
+                ...counts,
+                total: counts.success + counts.failure,
+            }));
+        } catch (error) {
+            console.error('Error fetching integration health:', error);
+            return [];
+        }
+    },
+
+    getRelatedLogs: async (integrationId: string, excludeId: string, limit: number = 5): Promise<IntegrationLog[]> => {
+        try {
+            const result = await db.query(
+                `SELECT * FROM activity_logs WHERE integration_id = $1 AND id != $2 ORDER BY created_at DESC LIMIT $3`,
+                [integrationId, excludeId, limit]
+            );
+            return result.rows.map(row => ({
+                id: row.id,
+                integration: row.integration_id,
+                event: row.event,
+                status: row.status as any,
+                time: new Date(row.created_at).toLocaleString(),
+                duration: row.duration,
+                payload: row.payload,
+                response: row.response ? JSON.parse(row.response) : undefined,
+                error: row.error ? JSON.parse(row.error) : undefined
+            }));
+        } catch (error) {
+            console.error('Error fetching related logs:', error);
+            return [];
+        }
+    },
 };

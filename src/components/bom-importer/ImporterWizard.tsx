@@ -7,6 +7,7 @@ import { FileUpload } from './FileUpload';
 import { ColumnMapper, ColumnMapping } from './ColumnMapper';
 import { ValidationView } from './ValidationView';
 import { ExportView } from './ExportView';
+import { RecentImports } from './RecentImports';
 import { validateData, ValidatedRow } from '@/lib/validator';
 import { FileSpreadsheet, ArrowRight } from 'lucide-react';
 
@@ -59,6 +60,25 @@ export function ImporterWizard() {
             });
         } catch (err) {
             console.error('Failed to notify Integration Hub:', err);
+        }
+
+        // Persist the BOM import to the database
+        try {
+            const warningCount = results.filter(r => r.status === 'warning').length;
+            await fetch('/api/bom', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: file?.name || 'unknown.csv',
+                    totalRows: results.length,
+                    validRows: validCount,
+                    invalidRows: errorCount,
+                    warningRows: warningCount,
+                    data: results.slice(0, 100).map(r => r.mapped), // Store first 100 rows
+                })
+            });
+        } catch (err) {
+            console.error('Failed to persist BOM import:', err);
         }
     };
 
@@ -127,6 +147,11 @@ export function ImporterWizard() {
                             >
                                 <FileSpreadsheet className="w-4 h-4" /> Download Sample CSV
                             </a>
+                        </div>
+
+                        {/* Recent Imports */}
+                        <div className="mt-8 w-full max-w-lg">
+                            <RecentImports />
                         </div>
                     </motion.div>
                 )}

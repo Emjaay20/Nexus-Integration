@@ -42,3 +42,15 @@ CREATE TABLE IF NOT EXISTS organization_settings (
 INSERT INTO organization_settings (id, api_key, email_alerts, slack_alerts, retention_days)
 SELECT 1, 'sk_live_' || md5(random()::text), true, false, 30
 WHERE NOT EXISTS (SELECT 1 FROM organization_settings WHERE id = 1);
+
+-- BOM Imports Table
+CREATE TABLE IF NOT EXISTS bom_imports (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    total_rows INTEGER NOT NULL,
+    valid_rows INTEGER NOT NULL,
+    invalid_rows INTEGER NOT NULL DEFAULT 0,
+    warning_rows INTEGER NOT NULL DEFAULT 0,
+    data JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
