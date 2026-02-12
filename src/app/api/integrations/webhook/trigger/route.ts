@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { integrationService } from '@/services/integrationService';
+import { pusherServer } from '@/lib/pusher';
 
 export async function POST(request: NextRequest) {
     try {
@@ -36,6 +37,13 @@ export async function POST(request: NextRequest) {
                 headers: { 'Content-Type': 'application/json' }
             }
         });
+
+        // Trigger real-time update
+        try {
+            await pusherServer.trigger('integration-hub', 'new-activity', log);
+        } catch (pusherError) {
+            console.error('Pusher Error:', pusherError);
+        }
 
         return NextResponse.json({
             success: true,

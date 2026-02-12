@@ -5,12 +5,16 @@ import { IntegrationCard } from '@/components/integration-hub/IntegrationCard';
 import { ActivityFeed } from '@/components/integration-hub/ActivityFeed';
 import { LiveActivityFeedWrapper } from '@/components/integration-hub/LiveActivityFeedWrapper';
 import { integrationService } from '@/services/integrationService';
+import { DemoGuide } from '@/components/demo/DemoGuide';
+
+export const dynamic = 'force-dynamic';
 
 export default async function IntegrationHubPage() {
     const integrationConfigs = await integrationService.getIntegrations();
 
     return (
         <div className="p-8">
+            <DemoGuide />
             <header className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>

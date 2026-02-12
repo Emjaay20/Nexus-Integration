@@ -1,116 +1,141 @@
 
-import { FileSpreadsheet, Activity, Terminal, ArrowRight, Github, Linkedin, Mail } from 'lucide-react';
+import { Activity, Terminal, ArrowRight, Zap, Database, Shield, LayoutDashboard, PlayCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 font-[family-name:var(--font-geist-sans)]">
+
       {/* Hero Section */}
       <section className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 py-20 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl md:text-6xl mb-6">
-              Engineering the Future of <span className="text-blue-600">Connected Supply Chains</span>
+        <div className="max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8 text-center">
+          <div className="max-w-4xl mx-auto">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium mb-6 border border-indigo-100">
+              <Zap className="w-4 h-4 fill-current" /> Live Real-Time Integration
+            </span>
+            <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 sm:text-6xl md:text-7xl mb-8">
+              The <span className="text-indigo-600">Air Traffic Control</span> for your Supply Chain Data.
             </h1>
-            <p className="mt-4 text-xl text-slate-500 max-w-2xl">
-              Hi, I'm a Forward Deployed Engineer candidate. This portfolio demonstrates my ability to solve complex integration challenges, build intuitive tools, and scale technical solutions.
+            <p className="mt-4 text-xl text-slate-500 max-w-2xl mx-auto mb-10">
+              Nexus connects your ERP, CRM, and PLM systems in real-time.
+              Visualize data flows, detect errors instantly, and maintain a single source of truth.
             </p>
-            <div className="mt-8 flex gap-4">
-              <a href="mailto:hello@example.com" className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                Contact Me
-              </a>
-              <a href="#" className="inline-flex items-center justify-center px-5 py-3 border border-slate-200 text-base font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50">
-                <Github className="w-5 h-5 mr-2" /> View Code
-              </a>
+            <div className="flex justify-center gap-4">
+              <Link href="/integration-hub" className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-500/25 transition-all">
+                <LayoutDashboard className="w-5 h-5 mr-2" /> Open Dashboard
+              </Link>
+              <Link href="/developer/playground" className="inline-flex items-center justify-center px-8 py-4 border border-slate-200 text-lg font-bold rounded-xl text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition-all">
+                <Terminal className="w-5 h-5 mr-2" /> Open Simulator
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Projects Grid */}
-      <main className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* How to Demo Section */}
+      <section className="bg-slate-50 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900">How to Experience the Demo</h2>
+            <p className="text-slate-500 mt-4">Follow these simple steps to see the real-time architecture in action.</p>
+          </div>
 
-          {/* Project 1: BOM Importer */}
-          <ProjectCard
-            title="Intelligent BOM Importer"
-            description="A smart tool to ingest, map, and validate messy customer Bill of Materials files. Solves the first mile of supply chain digitization."
-            icon={<FileSpreadsheet className="w-8 h-8 text-blue-600" />}
-            href="/bom-importer"
-            status="Complete"
-            tags={['Data Parsing', 'Validation', 'UX']}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Step 1 */}
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-colors">
+              <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl text-slate-900 select-none">1</div>
+              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-6 text-indigo-600">
+                <LayoutDashboard className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Open the Dashboard</h3>
+              <p className="text-slate-500 mb-6">
+                Navigate to the <strong>Integration Hub</strong>. This is your "Control Tower" where you can see the health of all connections.
+              </p>
+              <Link href="/integration-hub" className="text-indigo-600 font-bold flex items-center gap-1 hover:gap-2 transition-all">
+                Go to Dashboard <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
 
-          {/* Project 2: Integration Hub */}
-          <ProjectCard
-            title="Integration Hub"
-            description="Visual dashboard for managing mission-critical data flows between customer ERPs and our platform. Monitor sync health in real-time."
-            icon={<Activity className="w-8 h-8 text-indigo-600" />}
-            href="/integration-hub"
-            status="In Progress"
-            tags={['System Design', 'Monitoring', 'Webhooks']}
-            isNext
-          />
+            {/* Step 2 */}
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-pink-200 transition-colors">
+              <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl text-slate-900 select-none">2</div>
+              <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mb-6 text-pink-600">
+                <Terminal className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Launch the Simulator</h3>
+              <p className="text-slate-500 mb-6">
+                Open the **API Playground** in a new tab. This tool lets you pretend to be Shopify or Salesforce sending data.
+              </p>
+              <Link href="/developer/playground" className="text-pink-600 font-bold flex items-center gap-1 hover:gap-2 transition-all">
+                Open Simulator <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
 
-          {/* Project 3: API Developer Portal */}
-          <ProjectCard
-            title="Developer API Portal"
-            description="A rigorous documentation hub and SDK wrapper to empower external developers to build on top of our ecosystem."
-            icon={<Terminal className="w-8 h-8 text-emerald-600" />}
-            href="/developer/playground"
-            status="Beta"
-            tags={['DX', 'Documentation', 'SDK']}
-          />
-
+            {/* Step 3 */}
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-emerald-200 transition-colors">
+              <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl text-slate-900 select-none">3</div>
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-6 text-emerald-600">
+                <PlayCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Trigger Real-Time Event</h3>
+              <p className="text-slate-500 mb-6">
+                Click <strong>"Load Failure Example"</strong> and hit Send. Switch back to the Dashboard instantly to see it turn <span className="text-red-500 font-bold">RED</span>.
+              </p>
+            </div>
+          </div>
         </div>
-      </main>
+      </section>
 
-      <footer className="bg-white border-t border-slate-200 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-          <p className="text-slate-400">Created for Nexus-Integration • 2026</p>
+      {/* Technical Architecture */}
+      <section className="bg-white border-t border-slate-200 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900">Built for Scale & Reliability</h2>
+            <p className="text-slate-500 mt-4">This isn't just a prototype. It's built with production-grade infrastructure.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <TechCard
+              icon={<Database className="w-5 h-5" />}
+              title="Neon Database"
+              description="Serverless PostgreSQL for persistent audit logs."
+            />
+            <TechCard
+              icon={<Zap className="w-5 h-5" />}
+              title="Pusher Real-Time"
+              description="WebSockets for sub-millisecond UI updates."
+            />
+            <TechCard
+              icon={<Activity className="w-5 h-5" />}
+              title="Next.js 16"
+              description="React Server Components for optimal performance."
+            />
+            <TechCard
+              icon={<Shield className="w-5 h-5" />}
+              title="Type-Safe"
+              description="End-to-end TypeScript validation."
+            />
+          </div>
+        </div>
+      </section>
+
+      <footer className="bg-slate-900 text-slate-400 py-12">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p>&copy; 2026 Nexus Integration. Built as a technical demonstration.</p>
         </div>
       </footer>
     </div>
   );
 }
 
-function ProjectCard({ title, description, icon, href, status, tags, isNext }: any) {
+function TechCard({ icon, title, description }: any) {
   return (
-    <a href={href} className="group relative bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col h-full">
-      {isNext && (
-        <div className="absolute top-0 right-0 bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-          NEXT PROJECT
-        </div>
-      )}
-      <div className="p-8 flex-1">
-        <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-slate-100">
-          {icon}
-        </div>
-        <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">
-          {title}
-        </h3>
-        <p className="text-slate-500 leading-relaxed mb-6">
-          {description}
-        </p>
-        <div className="flex flex-wrap gap-2 mt-auto">
-          {tags.map((tag: string) => (
-            <span key={tag} className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-medium">
-              {tag}
-            </span>
-          ))}
-        </div>
+    <div className="flex flex-col items-center text-center p-6 bg-slate-50 rounded-xl border border-slate-100">
+      <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-900 mb-4">
+        {icon}
       </div>
-      <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-sm font-medium">
-        <span className={`
-            flex items-center gap-1.5
-            ${status === 'Complete' ? 'text-green-600' : status === 'In Progress' ? 'text-indigo-600' : 'text-slate-400'}
-         `}>
-          <span className={`w-2 h-2 rounded-full ${status === 'Complete' ? 'bg-green-600' : status === 'In Progress' ? 'bg-indigo-600 animate-pulse' : 'bg-slate-300'}`} />
-          {status}
-        </span>
-        <span className="text-slate-400 group-hover:text-slate-900 flex items-center gap-1 transition-colors">
-          View App <ArrowRight className="w-4 h-4" />
-        </span>
-      </div>
-    </a>
-  );
+      <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
+      <p className="text-sm text-slate-500">{description}</p>
+    </div>
+  )
 }

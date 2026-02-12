@@ -27,3 +27,17 @@ VALUES
     ('plm-erp', 'PLM to ERP', 'arena', 'sap', 'healthy', NOW() - INTERVAL '1 hour', '98.5%'),
     ('crm-updates', 'CRM Updates', 'salesforce', 'slack', 'error', NOW() - INTERVAL '5 minutes', '95.2%')
 ON CONFLICT (id) DO NOTHING;
+
+-- Settings Table
+CREATE TABLE IF NOT EXISTS organization_settings (
+    id SERIAL PRIMARY KEY,
+    api_key TEXT NOT NULL,
+    email_alerts BOOLEAN DEFAULT true,
+    slack_alerts BOOLEAN DEFAULT false,
+    retention_days INTEGER DEFAULT 30
+);
+
+-- Seed default settings
+INSERT INTO organization_settings (id, api_key, email_alerts, slack_alerts, retention_days)
+SELECT 1, 'sk_live_' || md5(random()::text), true, false, 30
+WHERE NOT EXISTS (SELECT 1 FROM organization_settings WHERE id = 1);
