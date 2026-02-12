@@ -25,7 +25,8 @@ INSERT INTO integrations (id, name, source, destination, status, last_run, uptim
 VALUES 
     ('ecommerce-sync', 'E-Commerce Sync', 'shopify', 'netsuite', 'healthy', NOW() - INTERVAL '2 minutes', '99.9%'),
     ('plm-erp', 'PLM to ERP', 'arena', 'sap', 'healthy', NOW() - INTERVAL '1 hour', '98.5%'),
-    ('crm-updates', 'CRM Updates', 'salesforce', 'slack', 'error', NOW() - INTERVAL '5 minutes', '95.2%')
+    ('crm-updates', 'CRM Updates', 'salesforce', 'slack', 'error', NOW() - INTERVAL '5 minutes', '95.2%'),
+    ('bom-importer', 'BOM Importer', 'file-upload', 'nexus', 'healthy', NOW(), '100%')
 ON CONFLICT (id) DO NOTHING;
 
 -- Settings Table

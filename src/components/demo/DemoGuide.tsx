@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, FileSpreadsheet } from 'lucide-react';
 import Link from 'next/link';
 
 export function DemoGuide() {
@@ -16,17 +16,25 @@ export function DemoGuide() {
                     👋
                 </div>
                 <div>
-                    <h3 className="text-indigo-900 font-bold mb-1">Testing the Real-Time Feed?</h3>
+                    <h3 className="text-indigo-900 font-bold mb-1">Welcome to the Integration Hub</h3>
                     <p className="text-indigo-700 text-sm mb-3">
-                        Use our simulator to send fake data events to this dashboard and watch it react instantly.
+                        This is your real-time control tower. Try one of these actions and watch the feed update instantly:
                     </p>
-                    <Link
-                        href="/developer/playground"
-                        target="_blank"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                        Open Simulator <ExternalLink className="w-3 h-3" />
-                    </Link>
+                    <div className="flex flex-wrap gap-2">
+                        <Link
+                            href="/bom-importer"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <FileSpreadsheet className="w-3 h-3" /> Import a BOM
+                        </Link>
+                        <Link
+                            href="/developer/playground"
+                            target="_blank"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                            Open Simulator <ExternalLink className="w-3 h-3" />
+                        </Link>
+                    </div>
                 </div>
             </div>
             <button

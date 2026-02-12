@@ -32,12 +32,34 @@ export function ImporterWizard() {
     const handleMappingConfirm = async (newMapping: ColumnMapping) => {
         setMapping(newMapping);
         setIsValidating(true);
-        // Transition to step 3 immediately or show loading
 
         const results = await validateData(parsedData, newMapping);
         setValidatedRows(results);
         setIsValidating(false);
         setStep(3);
+
+        // Fire real-time event to Integration Hub
+        const validCount = results.filter(r => r.status === 'valid').length;
+        const errorCount = results.filter(r => r.status === 'invalid').length;
+        try {
+            await fetch('/api/integrations/webhook/trigger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event: 'bom.validated',
+                    source: 'bom-importer',
+                    payload: {
+                        fileName: file?.name,
+                        totalRows: results.length,
+                        validRows: validCount,
+                        errorRows: errorCount,
+                        status: errorCount > 0 ? 'partial' : 'clean'
+                    }
+                })
+            });
+        } catch (err) {
+            console.error('Failed to notify Integration Hub:', err);
+        }
     };
 
     const handleFileSelect = async (uploadedFile: File) => {
@@ -96,11 +118,15 @@ export function ImporterWizard() {
                         </div>
                         <FileUpload onFileSelect={handleFileSelect} />
 
-                        {/* Quick Template Download (Nice to have feature) */}
+                        {/* Quick Template Download */}
                         <div className="mt-12 flex gap-4 text-sm text-slate-400">
-                            <span className="flex items-center gap-1 hover:text-blue-600 cursor-pointer transition-colors">
+                            <a
+                                href="/sample-bom.csv"
+                                download
+                                className="flex items-center gap-1 hover:text-blue-600 cursor-pointer transition-colors"
+                            >
                                 <FileSpreadsheet className="w-4 h-4" /> Download Sample CSV
-                            </span>
+                            </a>
                         </div>
                     </motion.div>
                 )}

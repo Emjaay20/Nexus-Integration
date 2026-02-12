@@ -1,0 +1,14 @@
+Part Number,Description,Manufacturer,MPN,Quantity,Unit Price,Category
+NEXUS-CAP-001,100nF Ceramic Capacitor,Murata,GRM155R71C104KA88D,500,0.012,Capacitor
+NEXUS-RES-002,10k Ohm Resistor 0402,Yageo,RC0402FR-0710KL,1000,0.003,Resistor
+NEXUS-IC-003,ARM Cortex-M4 MCU,STMicroelectronics,STM32F411CEU6,50,4.85,IC
+NEXUS-LED-004,White LED 0603,Wurth Elektronik,150060WS75000,200,0.045,LED
+NEXUS-CON-005,USB-C Connector,Molex,2171750001,100,0.89,Connector
+NEXUS-IND-006,4.7uH Inductor,TDK,VLF3010AT-4R7MR68,300,0.15,Inductor
+NEXUS-DIO-007,Schottky Diode,Nexperia,PMEG3010ER,150,0.08,Diode
+NEXUS-XTAL-008,32.768kHz Crystal,Abracon,ABS07-32.768KHZ-T,75,0.35,Crystal
+NEXUS-REG-009,3.3V LDO Regulator,Texas Instruments,TLV1117-33IDCYR,100,0.42,Regulator
+NEXUS-FET-010,N-Channel MOSFET,Infineon,IRLML6344TRPBF,200,0.18,MOSFET
+INVALID-001,Missing Manufacturer,,UNKNOWN-MPN,25,0.00,Unknown
+,Empty Part Number Row,Samsung,,10,1.50,IC
+NEXUS-RES-099,Duplicate Check,Yageo,RC0402FR-0710KL,50,0.003,Resistor

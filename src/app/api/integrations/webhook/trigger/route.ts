@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
         if (source === 'shopify') integration = 'ecommerce-sync';
         else if (source === 'salesforce') integration = 'crm-updates';
         else if (source === 'arena') integration = 'plm-erp';
+        else if (source === 'bom-importer') integration = 'bom-importer';
         else integration = source;
 
         // Create the log entry
