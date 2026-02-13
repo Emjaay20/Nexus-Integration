@@ -55,3 +55,12 @@ CREATE TABLE IF NOT EXISTS bom_imports (
     data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Verification tokens for magic link email login
+CREATE TABLE IF NOT EXISTS verification_tokens (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

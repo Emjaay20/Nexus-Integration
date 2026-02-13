@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/auth/LoginForm';
+import { Suspense } from 'react';
 
 export default function LoginPage() {
     return (
@@ -23,16 +24,10 @@ export default function LoginPage() {
                     <p className="text-slate-500">Sign in to your supply chain dashboard.</p>
                 </div>
 
-                {/* Login Card */}
-                <LoginForm />
-
-                {/* Demo Hint */}
-                <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-center">
-                    <p className="text-sm text-indigo-700 font-medium mb-1">🎯 Demo Credentials</p>
-                    <p className="text-xs text-indigo-600 font-mono">
-                        demo@nexus.dev / demo1234
-                    </p>
-                </div>
+                {/* Login Card — Suspense needed for useSearchParams */}
+                <Suspense fallback={<div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-8 h-64 animate-pulse" />}>
+                    <LoginForm />
+                </Suspense>
             </div>
         </div>
     );
