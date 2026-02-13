@@ -305,9 +305,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
           <p>&copy; 2026 Nexus Integration. Built as a technical demonstration.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
-            <a href="#" className="hover:text-slate-900">Documentation</a>
-            <a href="#" className="hover:text-slate-900">API Reference</a>
-            <a href="#" className="hover:text-slate-900">Status</a>
+            <Link href="/docs" className="hover:text-slate-900 transition-colors">Documentation</Link>
+            <Link href="/api-reference" className="hover:text-slate-900 transition-colors">API Reference</Link>
+            <Link href="/status" className="hover:text-slate-900 transition-colors">Status</Link>
           </div>
         </div>
       </footer>
