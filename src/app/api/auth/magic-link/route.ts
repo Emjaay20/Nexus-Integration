@@ -5,7 +5,9 @@ import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+    return new Resend(process.env.RESEND_API_KEY);
+}
 
 export async function POST(request: Request) {
     try {
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
         const magicLink = `${baseUrl}/api/auth/magic-link/verify?token=${token}&email=${encodeURIComponent(email.toLowerCase())}`;
 
         // Send email via Resend
-        const { error } = await resend.emails.send({
+        const { error } = await getResend().emails.send({
             from: 'Nexus Integration <onboarding@resend.dev>',
             to: email,
             subject: 'Sign in to Nexus Integration Hub',
