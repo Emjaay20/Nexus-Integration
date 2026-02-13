@@ -3,9 +3,7 @@
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertCircle, Github, ArrowRight, Loader2, Mail, CheckCircle2, Sparkles } from 'lucide-react';
-
-type LoginMode = 'magic-link' | 'demo';
+import { AlertCircle, Github, Mail, ArrowRight, Loader2 } from 'lucide-react';
 
 export function LoginForm() {
     const [email, setEmail] = useState('');
@@ -13,11 +11,11 @@ export function LoginForm() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [magicLinkSent, setMagicLinkSent] = useState(false);
-    const [mode, setMode] = useState<LoginMode>('magic-link');
+    const [magicEmail, setMagicEmail] = useState('');
+    const [magicLoading, setMagicLoading] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Show errors from magic link redirects
     const urlError = searchParams.get('error');
     const errorMessages: Record<string, string> = {
         'invalid-link': 'This login link is invalid or has already been used.',
@@ -26,45 +24,20 @@ export function LoginForm() {
         'server': 'Something went wrong. Please try again.',
     };
 
-    const handleMagicLink = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        try {
-            const res = await fetch('/api/auth/magic-link', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to send magic link');
-            }
-
-            setMagicLinkSent(true);
-        } catch (err: any) {
-            setError(err.message || 'Failed to send magic link. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleDemoLogin = async (e: React.FormEvent) => {
+    const handleCredentialsLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         try {
             const result = await signIn('credentials', {
-                email: 'demo@nexus.dev',
-                password: 'demo1234',
+                email,
+                password,
                 redirect: false,
             });
 
             if (result?.error) {
-                setError('Something went wrong. Please try again.');
+                setError('Invalid credentials. Use the demo hint below.');
             } else {
                 router.push('/integration-hub');
                 router.refresh();
@@ -80,23 +53,38 @@ export function LoginForm() {
         signIn('github', { callbackUrl: '/integration-hub' });
     };
 
-    // Magic link sent success state
+    const handleMagicLink = async () => {
+        if (!magicEmail) return;
+        setMagicLoading(true);
+        setError('');
+        try {
+            const res = await fetch('/api/auth/magic-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: magicEmail }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            setMagicLinkSent(true);
+        } catch {
+            setError('Failed to send magic link. Try again.');
+        } finally {
+            setMagicLoading(false);
+        }
+    };
+
+    // Magic link sent confirmation
     if (magicLinkSent) {
         return (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 p-8 text-center">
-                <div className="w-16 h-16 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-center mx-auto mb-5">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+            <div className="text-center py-8">
+                <div className="w-14 h-14 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-center mx-auto mb-5">
+                    <Mail className="w-7 h-7 text-emerald-500" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Check your email</h2>
-                <p className="text-sm text-slate-500 mb-1">
-                    We sent a magic link to
-                </p>
-                <p className="text-sm font-semibold text-slate-800 mb-6">{email}</p>
-                <p className="text-xs text-slate-400 mb-6">
-                    Click the link in the email to sign in. It expires in 10 minutes.
-                </p>
+                <p className="text-sm text-slate-500 mb-1">We sent a magic link to</p>
+                <p className="text-sm font-semibold text-slate-800 mb-6">{magicEmail}</p>
+                <p className="text-xs text-slate-400 mb-6">Click the link in the email to sign in. It expires in 10 minutes.</p>
                 <button
-                    onClick={() => { setMagicLinkSent(false); setEmail(''); }}
+                    onClick={() => { setMagicLinkSent(false); setMagicEmail(''); }}
                     className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                 >
                     ← Use a different email
@@ -106,119 +94,126 @@ export function LoginForm() {
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 p-8">
-            {/* GitHub Login */}
-            <button
-                onClick={handleGitHubLogin}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors mb-6"
-            >
-                <Github className="w-5 h-5" />
-                Continue with GitHub
-            </button>
-
-            {/* Divider */}
-            <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                    <span className="px-3 bg-white text-slate-400">or</span>
-                </div>
-            </div>
-
-            {/* Mode Tabs */}
-            <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-6">
-                <button
-                    onClick={() => { setMode('magic-link'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${mode === 'magic-link'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    <Mail className="w-4 h-4" />
-                    Email Login
-                </button>
-                <button
-                    onClick={() => { setMode('demo'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${mode === 'demo'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    <Sparkles className="w-4 h-4" />
-                    Demo Account
-                </button>
-            </div>
-
-            {/* Error messages */}
+        <div>
+            {/* Error */}
             {(error || urlError) && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-sm">
+                <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-6 text-sm">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     {error || errorMessages[urlError!] || 'An error occurred'}
                 </div>
             )}
 
-            {/* Magic Link Form */}
-            {mode === 'magic-link' && (
-                <form onSubmit={handleMagicLink} className="space-y-4">
-                    <div>
-                        <label htmlFor="magic-email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                            Email address
-                        </label>
-                        <input
-                            id="magic-email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@company.com"
-                            required
-                            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-900 placeholder:text-slate-400"
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200"
-                    >
-                        {loading ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                            <>
-                                <Mail className="w-4 h-4" />
-                                Send Magic Link
-                            </>
-                        )}
-                    </button>
-                    <p className="text-xs text-slate-400 text-center">
-                        No password needed — we'll email you a secure login link.
-                    </p>
-                </form>
-            )}
-
             {/* Demo Form */}
-            {mode === 'demo' && (
-                <form onSubmit={handleDemoLogin} className="space-y-4">
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
-                        <p className="text-sm text-indigo-700 font-medium mb-1">🎯 One-Click Demo</p>
-                        <p className="text-xs text-indigo-600">
-                            Sign in instantly with pre-populated demo data to explore all features.
-                        </p>
+            <form onSubmit={handleCredentialsLogin} className="space-y-6">
+                <div>
+                    <label className="block text-[11px] font-semibold tracking-[0.15em] text-slate-400 uppercase mb-2">
+                        Email Address
+                    </label>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@company.com"
+                        required
+                        className="w-full px-0 py-3 border-0 border-b border-slate-200 bg-transparent text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors text-[15px]"
+                    />
+                </div>
+
+                <div>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="block text-[11px] font-semibold tracking-[0.15em] text-slate-400 uppercase">
+                            Password
+                        </label>
+                        <span className="text-xs text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors">Forgot?</span>
                     </div>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        className="w-full px-0 py-3 border-0 border-b border-slate-200 bg-transparent text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors text-[15px]"
+                    />
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-xl font-semibold text-sm tracking-wide uppercase hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200/50 mt-8"
+                >
+                    {loading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                        <>Access Dashboard</>
+                    )}
+                </button>
+            </form>
+
+            {/* Divider */}
+            <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-100"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                    <span className="px-4 bg-white text-slate-400">or continue with</span>
+                </div>
+            </div>
+
+            {/* Social buttons */}
+            <div className="flex items-center justify-center gap-4">
+                <button
+                    onClick={handleGitHubLogin}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 hover:bg-slate-50 transition-all"
+                    title="Sign in with GitHub"
+                >
+                    <Github className="w-5 h-5" />
+                </button>
+                <div className="relative group">
                     <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200"
+                        onClick={() => {
+                            const el = document.getElementById('magic-link-popover');
+                            if (el) el.classList.toggle('hidden');
+                        }}
+                        className="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700 hover:bg-slate-50 transition-all"
+                        title="Sign in with email link"
                     >
-                        {loading ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                            <>
-                                Sign In as Demo User <ArrowRight className="w-4 h-4" />
-                            </>
-                        )}
+                        <Mail className="w-5 h-5" />
                     </button>
-                </form>
-            )}
+                    {/* Magic link popover */}
+                    <div id="magic-link-popover" className="hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-10">
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-white border-r border-b border-slate-200 rotate-45" />
+                        <p className="text-xs font-medium text-slate-700 mb-3">Sign in with a passwordless magic link:</p>
+                        <div className="flex gap-2">
+                            <input
+                                type="email"
+                                value={magicEmail}
+                                onChange={(e) => setMagicEmail(e.target.value)}
+                                placeholder="you@email.com"
+                                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <button
+                                onClick={handleMagicLink}
+                                disabled={magicLoading || !magicEmail}
+                                className="px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                            >
+                                {magicLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Demo hint */}
+            <div className="mt-10 pt-6 border-t border-slate-100 text-center">
+                <p className="text-sm text-slate-400">
+                    Demo: <button
+                        onClick={() => { setEmail('demo@nexus.dev'); setPassword('demo1234'); }}
+                        className="text-indigo-600 hover:text-indigo-700 font-mono font-medium transition-colors"
+                    >
+                        demo@nexus.dev
+                    </button>
+                </p>
+            </div>
         </div>
     );
 }
