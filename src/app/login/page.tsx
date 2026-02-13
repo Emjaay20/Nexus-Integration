@@ -1,5 +1,6 @@
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Suspense } from 'react';
+import Link from 'next/link';
 
 export default function LoginPage() {
     return (
@@ -11,13 +12,21 @@ export default function LoginPage() {
                 {/* Gradient overlay at top */}
                 <div className="absolute top-0 right-0 w-full h-72 bg-gradient-to-b from-indigo-100/40 to-transparent pointer-events-none" />
 
-                {/* Logo */}
+                {/* Logo → Home link */}
                 <div className="relative z-10">
-                    <div className="w-11 h-11 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                        </svg>
-                    </div>
+                    <Link
+                        href="/"
+                        className="group inline-flex items-center gap-3 transition-all duration-300"
+                    >
+                        <div className="w-11 h-11 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-indigo-300 group-hover:rounded-2xl">
+                            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                        </div>
+                        <span className="text-sm font-semibold text-slate-400 opacity-0 -translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
+                            Back to Home
+                        </span>
+                    </Link>
                 </div>
 
                 {/* Tagline */}
@@ -59,7 +68,7 @@ export default function LoginPage() {
                                     Nexus<span className="text-indigo-600">.OS</span>
                                 </span>
                             </div>
-                            <p className="text-xs font-semibold tracking-[0.2em] text-slate-400 uppercase mb-2">Welcome back</p>
+                            <p className="text-xs font-semibold tracking-[0.2em] text-slate-400 uppercase mb-2">Welcome</p>
                             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Sign In</h1>
                         </div>
 
