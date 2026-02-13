@@ -5,6 +5,8 @@ import { Save, Bell, Shield, Database, RotateCw, Loader2 } from 'lucide-react';
 import { updateSettings, rotateApiKey } from '@/actions/settings';
 import { useRouter } from 'next/navigation';
 
+import { ResetDataButton } from '@/components/settings/ResetDataButton';
+
 interface SettingsProps {
     initialSettings: {
         id: number;
@@ -144,6 +146,9 @@ export function SettingsForm({ initialSettings }: SettingsProps) {
                         </select>
                     </div>
                 </section>
+
+                {/* Data Management - Reset / Clear */}
+                <ResetDataButton />
             </div>
         </div>
     );

@@ -1,11 +1,13 @@
 import { Check, X, Box, ShoppingCart, RefreshCcw } from 'lucide-react';
 import clsx from 'clsx';
 import { integrationService } from '@/services/integrationService';
+import { getCurrentUserId } from '@/lib/session';
 import Link from 'next/link';
 
 // Display a list of recent integration activities
 export async function ActivityFeed() {
-    const logs = await integrationService.getActivityLogs();
+    const userId = await getCurrentUserId();
+    const logs = await integrationService.getActivityLogs(userId);
 
     return (
         <div className="divide-y divide-slate-100">

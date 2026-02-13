@@ -6,11 +6,13 @@ import { ActivityFeed } from '@/components/integration-hub/ActivityFeed';
 import { LiveActivityFeedWrapper } from '@/components/integration-hub/LiveActivityFeedWrapper';
 import { integrationService } from '@/services/integrationService';
 import { DemoGuide } from '@/components/demo/DemoGuide';
+import { getCurrentUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function IntegrationHubPage() {
-    const integrationConfigs = await integrationService.getIntegrations();
+    const userId = await getCurrentUserId();
+    const integrationConfigs = await integrationService.getIntegrations(userId);
 
     return (
         <div className="p-8">

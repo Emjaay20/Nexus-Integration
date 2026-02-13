@@ -1,12 +1,15 @@
 import { integrationService } from '@/services/integrationService';
 import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
+import { getCurrentUserId } from '@/lib/session';
 
 export default async function AnalyticsPage() {
+    const userId = await getCurrentUserId();
+
     const [eventsPerDay, statusBreakdown, integrationHealth, logs] = await Promise.all([
-        integrationService.getEventsPerDay(30),
-        integrationService.getStatusBreakdown(),
-        integrationService.getIntegrationHealth(),
-        integrationService.getActivityLogs(),
+        integrationService.getEventsPerDay(userId, 30),
+        integrationService.getStatusBreakdown(userId),
+        integrationService.getIntegrationHealth(userId),
+        integrationService.getActivityLogs(userId),
     ]);
 
     // Compute KPI metrics

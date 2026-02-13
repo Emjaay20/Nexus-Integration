@@ -1,12 +1,14 @@
 'use server';
 
 import { db } from '@/lib/db';
+import { getCurrentUserId } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 
 export async function getSettings() {
     try {
-        const result = await db.query('SELECT * FROM organization_settings WHERE id = 1');
-        return result.rows[0];
+        const userId = await getCurrentUserId();
+        const result = await db.query('SELECT * FROM organization_settings WHERE user_id = $1', [userId]);
+        return result.rows[0] || null;
     } catch (error) {
         console.error('Failed to fetch settings:', error);
         return null;
@@ -15,9 +17,10 @@ export async function getSettings() {
 
 export async function updateSettings(data: { email_alerts: boolean; slack_alerts: boolean; retention_days: number }) {
     try {
+        const userId = await getCurrentUserId();
         await db.query(
-            'UPDATE organization_settings SET email_alerts = $1, slack_alerts = $2, retention_days = $3 WHERE id = 1',
-            [data.email_alerts, data.slack_alerts, data.retention_days]
+            'UPDATE organization_settings SET email_alerts = $1, slack_alerts = $2, retention_days = $3 WHERE user_id = $4',
+            [data.email_alerts, data.slack_alerts, data.retention_days, userId]
         );
         revalidatePath('/integration-hub/settings');
         return { success: true };
@@ -29,8 +32,9 @@ export async function updateSettings(data: { email_alerts: boolean; slack_alerts
 
 export async function rotateApiKey() {
     try {
+        const userId = await getCurrentUserId();
         const newKey = 'sk_live_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        await db.query('UPDATE organization_settings SET api_key = $1 WHERE id = 1', [newKey]);
+        await db.query('UPDATE organization_settings SET api_key = $1 WHERE user_id = $2', [newKey, userId]);
         revalidatePath('/integration-hub/settings');
         return { success: true, apiKey: newKey };
     } catch (error) {

@@ -2,15 +2,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { integrationService } from '@/services/integrationService';
 import { pusherServer } from '@/lib/pusher';
+import { auth } from '@/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
     try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json(
+                { success: false, message: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+        const userId = session.user.id;
+
         const body = await request.json();
         const { event, source, payload } = body;
 
-        // Validate inputs (basic)
         if (!event || !source) {
             return NextResponse.json(
                 { success: false, message: 'Missing required fields: event, source' },
@@ -18,8 +27,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Determine integration name based on source (mock logic)
-        // Determine integration ID based on source
         let integration = 'unknown';
         if (source === 'shopify') integration = 'ecommerce-sync';
         else if (source === 'salesforce') integration = 'crm-updates';
@@ -27,11 +34,10 @@ export async function POST(request: NextRequest) {
         else if (source === 'bom-importer') integration = 'bom-importer';
         else integration = source;
 
-        // Create the log entry
-        const log = await integrationService.addActivityLog({
+        const log = await integrationService.addActivityLog(userId, {
             event: event,
             integration: integration,
-            status: 'success', // For this playground we default to success unless specific error trigger
+            status: 'success',
             duration: `${Math.floor(Math.random() * 500) + 100}ms`,
             payload: JSON.stringify(payload, null, 2),
             response: {
@@ -41,7 +47,6 @@ export async function POST(request: NextRequest) {
             }
         });
 
-        // Trigger real-time update
         try {
             await pusherServer.trigger('integration-hub', 'new-activity', log);
         } catch (pusherError) {

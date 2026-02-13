@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import clsx from 'clsx';
+import { WelcomeTour } from '@/components/onboarding/WelcomeTour';
 
 export default function IntegrationHubLayout({
     children,
@@ -16,6 +17,7 @@ export default function IntegrationHubLayout({
 
     return (
         <div className="min-h-screen bg-slate-50 flex font-[family-name:var(--font-geist-sans)]">
+            <WelcomeTour />
             {/* Sidebar */}
             <aside
                 className={clsx(

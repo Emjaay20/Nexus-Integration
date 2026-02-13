@@ -3,15 +3,12 @@ import { IntegrationConfig, IntegrationLog } from '@/types/integration';
 import { db } from '@/lib/db';
 
 export const integrationService = {
-    getIntegrations: async (): Promise<IntegrationConfig[]> => {
+    getIntegrations: async (userId: string): Promise<IntegrationConfig[]> => {
         try {
-            const result = await db.query('SELECT * FROM integrations ORDER BY last_run DESC');
-
-            // Map DB snake_case to frontend camelCase if needed, but our schema matches mostly
-            // We need to map 'last_run' timestamp to string for now to match interface, or update interface
+            const result = await db.query('SELECT * FROM integrations WHERE user_id = $1 ORDER BY last_run DESC', [userId]);
             return result.rows.map(row => ({
                 ...row,
-                lastRun: new Date(row.last_run).toLocaleString(), // Simple formatting
+                lastRun: new Date(row.last_run).toLocaleString(),
                 uptime: row.uptime || '0%'
             }));
         } catch (error) {
@@ -20,15 +17,15 @@ export const integrationService = {
         }
     },
 
-    getActivityLogs: async (): Promise<IntegrationLog[]> => {
+    getActivityLogs: async (userId: string): Promise<IntegrationLog[]> => {
         try {
-            const result = await db.query('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 50');
+            const result = await db.query('SELECT * FROM activity_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId]);
             return result.rows.map(row => ({
                 id: row.id,
-                integration: row.integration_id || 'Unknown', // This should probably be a join or name
+                integration: row.integration_id || 'Unknown',
                 event: row.event,
                 status: row.status as any,
-                time: new Date(row.created_at).toLocaleString(), // value "Just now" replaced by real time
+                time: new Date(row.created_at).toLocaleString(),
                 duration: row.duration,
                 payload: row.payload,
                 response: row.response ? JSON.parse(row.response) : undefined,
@@ -40,16 +37,14 @@ export const integrationService = {
         }
     },
 
-    addActivityLog: async (log: Omit<IntegrationLog, 'id' | 'time'>): Promise<IntegrationLog> => {
+    addActivityLog: async (userId: string, log: Omit<IntegrationLog, 'id' | 'time'>): Promise<IntegrationLog> => {
         try {
-            // Start a transaction-like approach (or just sequential queries for now)
-
-            // 1. Insert the log
             const result = await db.query(
-                `INSERT INTO activity_logs (event, integration_id, status, duration, payload, response, error) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7) 
+                `INSERT INTO activity_logs (user_id, event, integration_id, status, duration, payload, response, error) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
                  RETURNING *`,
                 [
+                    userId,
                     log.event,
                     log.integration,
                     log.status,
@@ -60,15 +55,10 @@ export const integrationService = {
                 ]
             );
 
-            // 2. Update the parent integration status and last_run
-            // If log status is 'failure', set integration to 'error'. If 'success', set to 'healthy'.
             const newStatus = log.status === 'failure' ? 'error' : 'healthy';
-
             await db.query(
-                `UPDATE integrations 
-                 SET status = $1, last_run = NOW() 
-                 WHERE id = $2`,
-                [newStatus, log.integration]
+                `UPDATE integrations SET status = $1, last_run = NOW() WHERE id = $2 AND user_id = $3`,
+                [newStatus, log.integration, userId]
             );
 
             const row = result.rows[0];
@@ -77,7 +67,7 @@ export const integrationService = {
                 event: row.event,
                 integration: row.integration_id,
                 status: row.status as any,
-                time: 'Just now', // For immediate UI feedback
+                time: 'Just now',
                 duration: row.duration,
                 payload: row.payload,
                 response: row.response ? JSON.parse(row.response) : undefined
@@ -88,9 +78,9 @@ export const integrationService = {
         }
     },
 
-    getIntegrationById: async (id: string): Promise<IntegrationConfig | undefined> => {
+    getIntegrationById: async (userId: string, id: string): Promise<IntegrationConfig | undefined> => {
         try {
-            const result = await db.query('SELECT * FROM integrations WHERE id = $1', [id]);
+            const result = await db.query('SELECT * FROM integrations WHERE id = $1 AND user_id = $2', [id, userId]);
             if (result.rows.length === 0) return undefined;
 
             const row = result.rows[0];
@@ -105,9 +95,9 @@ export const integrationService = {
         }
     },
 
-    getLogById: async (id: string): Promise<IntegrationLog | undefined> => {
+    getLogById: async (userId: string, id: string): Promise<IntegrationLog | undefined> => {
         try {
-            const result = await db.query('SELECT * FROM activity_logs WHERE id = $1', [id]);
+            const result = await db.query('SELECT * FROM activity_logs WHERE id = $1 AND user_id = $2', [id, userId]);
             if (result.rows.length === 0) return undefined;
 
             const row = result.rows[0];
@@ -128,17 +118,17 @@ export const integrationService = {
         }
     },
 
-    getEventsPerDay: async (days: number = 30): Promise<{ day: string; success: number; failure: number }[]> => {
+    getEventsPerDay: async (userId: string, days: number = 30): Promise<{ day: string; success: number; failure: number }[]> => {
         try {
             const result = await db.query(
                 `SELECT DATE(created_at) as day, status, COUNT(*)::int as count
                  FROM activity_logs
-                 WHERE created_at > NOW() - INTERVAL '${days} days'
+                 WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${days} days'
                  GROUP BY day, status
-                 ORDER BY day`
+                 ORDER BY day`,
+                [userId]
             );
 
-            // Pivot rows into { day, success, failure } format
             const dayMap = new Map<string, { success: number; failure: number }>();
             for (const row of result.rows) {
                 const dayStr = new Date(row.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -155,10 +145,11 @@ export const integrationService = {
         }
     },
 
-    getStatusBreakdown: async (): Promise<{ name: string; value: number; color: string }[]> => {
+    getStatusBreakdown: async (userId: string): Promise<{ name: string; value: number; color: string }[]> => {
         try {
             const result = await db.query(
-                `SELECT status, COUNT(*)::int as count FROM activity_logs GROUP BY status`
+                `SELECT status, COUNT(*)::int as count FROM activity_logs WHERE user_id = $1 GROUP BY status`,
+                [userId]
             );
             return result.rows.map(row => ({
                 name: row.status === 'success' ? 'Success' : 'Failed',
@@ -171,12 +162,14 @@ export const integrationService = {
         }
     },
 
-    getIntegrationHealth: async (): Promise<{ integration: string; success: number; failure: number; total: number }[]> => {
+    getIntegrationHealth: async (userId: string): Promise<{ integration: string; success: number; failure: number; total: number }[]> => {
         try {
             const result = await db.query(
                 `SELECT integration_id, status, COUNT(*)::int as count
                  FROM activity_logs
-                 GROUP BY integration_id, status`
+                 WHERE user_id = $1
+                 GROUP BY integration_id, status`,
+                [userId]
             );
 
             const intMap = new Map<string, { success: number; failure: number }>();
@@ -199,11 +192,11 @@ export const integrationService = {
         }
     },
 
-    getRelatedLogs: async (integrationId: string, excludeId: string, limit: number = 5): Promise<IntegrationLog[]> => {
+    getRelatedLogs: async (userId: string, integrationId: string, excludeId: string, limit: number = 5): Promise<IntegrationLog[]> => {
         try {
             const result = await db.query(
-                `SELECT * FROM activity_logs WHERE integration_id = $1 AND id != $2 ORDER BY created_at DESC LIMIT $3`,
-                [integrationId, excludeId, limit]
+                `SELECT * FROM activity_logs WHERE user_id = $1 AND integration_id = $2 AND id != $3 ORDER BY created_at DESC LIMIT $4`,
+                [userId, integrationId, excludeId, limit]
             );
             return result.rows.map(row => ({
                 id: row.id,

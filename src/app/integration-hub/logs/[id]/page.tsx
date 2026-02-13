@@ -1,11 +1,13 @@
-import { ArrowLeft, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { integrationService } from '@/services/integrationService';
+import { getCurrentUserId } from '@/lib/session';
 import Link from 'next/link';
 import { LogDetailClient } from '@/components/integration-hub/LogDetailClient';
 
 export default async function IntegrationLogPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const log = await integrationService.getLogById(id);
+    const userId = await getCurrentUserId();
+    const log = await integrationService.getLogById(userId, id);
 
     if (!log) {
         return (
@@ -20,8 +22,7 @@ export default async function IntegrationLogPage({ params }: { params: Promise<{
         );
     }
 
-    // Fetch related events from the same integration
-    const relatedLogs = await integrationService.getRelatedLogs(log.integration, id, 5);
+    const relatedLogs = await integrationService.getRelatedLogs(userId, log.integration, id, 5);
 
     return (
         <div className="min-h-screen bg-slate-50 font-[family-name:var(--font-geist-sans)] p-8">
