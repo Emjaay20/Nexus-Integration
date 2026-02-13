@@ -22,7 +22,7 @@ export default function Home() {
               Live Real-Time Integration
             </span>
 
-            <h1 className="text-6xl font-extrabold tracking-tight text-slate-900 md:text-7xl mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight">
               The <span className="text-indigo-600 relative inline-block font-[850] tracking-tighter">
                 Air Traffic Control
                 {/* <svg className="absolute w-[105%] h-3 -bottom-2 -left-1 text-indigo-100 -z-10" viewBox="0 0 100 10" preserveAspectRatio="none">
