@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { db } from '@/lib/db';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-function getResend() {
-    return new Resend(process.env.RESEND_API_KEY);
+function getTransporter() {
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_APP_PASSWORD,
+        },
+    });
 }
 
 export async function POST(request: Request) {
@@ -34,9 +40,10 @@ export async function POST(request: Request) {
             : 'http://localhost:3000';
         const magicLink = `${baseUrl}/api/auth/magic-link/verify?token=${token}&email=${encodeURIComponent(email.toLowerCase())}`;
 
-        // Send email via Resend
-        const { error } = await getResend().emails.send({
-            from: 'Nexus Integration <onboarding@resend.dev>',
+        // Send email via Gmail SMTP
+        const transporter = getTransporter();
+        await transporter.sendMail({
+            from: `"Nexus Integration" <${process.env.GMAIL_USER}>`,
             to: email,
             subject: 'Sign in to Nexus Integration Hub',
             html: `
@@ -57,11 +64,6 @@ export async function POST(request: Request) {
                 </div>
             `,
         });
-
-        if (error) {
-            console.error('Resend error:', error);
-            return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
-        }
 
         return NextResponse.json({ success: true, message: 'Magic link sent' });
     } catch (error) {
