@@ -34,10 +34,10 @@ export async function POST(request: Request) {
             [email.toLowerCase(), token, expires]
         );
 
-        // Build magic link
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'http://localhost:3000';
+        // Build magic link — use the correct base URL for each environment
+        const baseUrl = process.env.NEXTAUTH_URL
+            || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+            || 'http://localhost:3000';
         const magicLink = `${baseUrl}/api/auth/magic-link/verify?token=${token}&email=${encodeURIComponent(email.toLowerCase())}`;
 
         // Send email via Gmail SMTP
