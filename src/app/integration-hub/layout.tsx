@@ -1,9 +1,9 @@
 'use client';
 
-import { Activity, LayoutGrid, Settings, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
+import { Activity, LayoutGrid, Settings, ChevronLeft, ChevronRight, BarChart3, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { WelcomeTour } from '@/components/onboarding/WelcomeTour';
 
@@ -14,18 +14,69 @@ export default function IntegrationHubLayout({
 }) {
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    // Close mobile sidebar on route change
+    useEffect(() => {
+        setIsMobileOpen(false);
+    }, [pathname]);
+
+    // Prevent body scroll when mobile sidebar is open
+    useEffect(() => {
+        if (isMobileOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [isMobileOpen]);
 
     return (
         <div className="min-h-screen bg-slate-50 flex font-[family-name:var(--font-geist-sans)]">
             <WelcomeTour />
+
+            {/* Mobile menu button */}
+            <button
+                onClick={() => setIsMobileOpen(true)}
+                className="lg:hidden fixed top-[1.125rem] left-4 z-30 p-2 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-600 hover:text-slate-900 transition-colors"
+                aria-label="Open navigation"
+            >
+                <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Mobile backdrop */}
+            {isMobileOpen && (
+                <div
+                    className="lg:hidden fixed inset-0 bg-black/40 z-30 backdrop-blur-sm"
+                    onClick={() => setIsMobileOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <aside
                 className={clsx(
-                    "bg-slate-900 text-slate-300 flex flex-col fixed top-16 bottom-0 z-10 border-t border-slate-800 transition-all duration-300",
-                    isCollapsed ? "w-16" : "w-64"
+                    "bg-slate-900 text-slate-300 flex flex-col fixed top-16 bottom-0 border-t border-slate-800 transition-all duration-300",
+                    // Desktop behavior
+                    "max-lg:translate-x-[-100%] max-lg:z-40 max-lg:w-64 max-lg:top-0",
+                    isMobileOpen && "max-lg:translate-x-0",
+                    // Desktop collapse/expand
+                    "lg:z-10",
+                    isCollapsed ? "lg:w-16" : "lg:w-64"
                 )}
             >
-                <div className="p-4 border-b border-slate-800 flex justify-between items-center h-14">
+                {/* Mobile close button */}
+                <div className="lg:hidden p-4 border-b border-slate-800 flex justify-between items-center h-16">
+                    <span className="font-bold text-sm text-white uppercase tracking-wider">Nexus</span>
+                    <button
+                        onClick={() => setIsMobileOpen(false)}
+                        className="p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Desktop header */}
+                <div className="hidden lg:flex p-4 border-b border-slate-800 justify-between items-center h-14">
                     {!isCollapsed && (
                         <span className="font-bold text-sm text-slate-400 uppercase tracking-wider whitespace-nowrap">
                             Integration Hub
@@ -70,10 +121,10 @@ export default function IntegrationHubLayout({
                     />
                 </nav>
 
-                <div className={clsx("p-4 border-t border-slate-800 transition-all", isCollapsed ? "items-center justify-center p-2" : "")}>
+                <div className={clsx("p-4 border-t border-slate-800 transition-all", isCollapsed && "lg:items-center lg:justify-center lg:p-2")}>
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold shrink-0">JD</div>
-                        {!isCollapsed && (
+                        {(!isCollapsed || isMobileOpen) && (
                             <div className="text-sm overflow-hidden">
                                 <div className="text-white font-medium truncate">Forward Deployed</div>
                                 <div className="text-xs text-slate-500">Admin</div>
@@ -87,7 +138,9 @@ export default function IntegrationHubLayout({
             <main
                 className={clsx(
                     "flex-1 transition-all duration-300",
-                    isCollapsed ? "ml-16" : "ml-64"
+                    // No margin on mobile (sidebar overlays)
+                    "lg:ml-64",
+                    isCollapsed && "lg:ml-16"
                 )}
             >
                 {children}

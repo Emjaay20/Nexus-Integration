@@ -1,95 +1,152 @@
 # Nexus-Integration
 
-**Nexus-Integration** is a next-generation "Supply Chain Operating System" designed to centralize, monitor, and manage the complex web of data flows between ERPs, CRMs, and PLM systems.
+A supply chain integration platform that monitors, visualizes, and manages data flows between enterprise systems in real time.
 
-![Nexus Dashboard Screenshot](https://raw.githubusercontent.com/Emjaay20/Nexus-Integration/main/public/dashboard-preview.png)
-
-## 🚀 The Mission
-Modern hardware companies struggle with "data silos." Engineers use one tool, procurement uses another, and sales uses a third. Nexus acts as the "Air Traffic Control" tower, connecting these systems via real-time webhooks and providing a single pane of glass for monitoring system health.
-
-## ✨ Key Features
-
-### 1. **Integration Hub (Real-Time)**
-*   **Live Monitoring**: Watch data synchronize between Shopify, Salesforce, and SAP in real-time.
-*   **Green/Red Status**: Instantly identify broken connections.
-*   **Activity Logs**: A permanent, searchable audit trail of every data packet.
-*   **Powered by**: Neon (PostgreSQL) + Pusher (WebSockets).
-
-### 2. **BOM Importer**
-*   **Intelligent Parsing**: Upload messy Excel/CSV Bill of Materials.
-*   **Validation**: Automatically flags missing part numbers or quantity errors.
-
-### 3. **Developer API**
-*   **Webhook Ingestion**: A robust API to receive signals from any external tool.
-*   **Interactive Playground**: A built-in tool for developers to test integrations without writing code.
+Built as a technical demonstration for a Forward Deployed Engineer role. The application connects simulated ERP, CRM, and PLM systems through a centralized dashboard, providing a single point of visibility into system health, data synchronization events, and error detection.
 
 ---
 
-## 🛠️ How It Works (Architecture)
+## What It Does
 
-1.  **Trigger**: An external system (e.g., Shopify) sends a webhook to `/api/integrations/webhook/trigger`.
-2.  **Process**: Nexus validates the payload and logs it to the **Neon Database**.
-3.  **Broadcast**: The server instantly pushes a `new-activity` event via **Pusher**.
-4.  **React**: The **Dashboard** subscribes to this event and updates the UI immediately (no page refresh required).
+**Integration Hub** — A real-time monitoring dashboard that displays the health of all connected integrations. Status changes, data sync events, and errors surface instantly through WebSocket-driven updates with no page refresh required.
+
+**BOM Importer** — A multi-step wizard for uploading Bill of Materials files (CSV/Excel). The importer parses columns, maps them to a target schema, and validates data integrity before ingestion. Invalid rows are flagged with specific error messages.
+
+**API Playground** — A developer-facing tool that simulates external webhook payloads. You can fire test events as if they were coming from Shopify, Salesforce, or Arena PLM and watch the dashboard react in real time.
+
+**Analytics** — Historical charts showing event volume over time, success/failure breakdowns by integration, and average response latency.
 
 ---
 
-## 🏁 Getting Started
+## Architecture
+
+The system follows a straightforward event-driven pattern:
+
+1. An external system (or the built-in simulator) sends a POST request to `/api/integrations/webhook/trigger`.
+2. The API route validates the payload, determines which integration it belongs to, and writes an activity log to the database.
+3. The server pushes a `new-activity` event over Pusher (WebSockets).
+4. The client-side dashboard subscribes to this channel and updates the UI immediately.
+
+All data is scoped per user. Authentication gates protected routes through NextAuth middleware, and each user gets their own set of integrations, logs, and settings on first login.
+
+### Database Schema
+
+| Table | Purpose |
+|---|---|
+| `users` | User accounts (email, name, OAuth provider) |
+| `integrations` | Per-user integration definitions (source, destination, status) |
+| `activity_logs` | Immutable audit trail of every webhook event |
+| `organization_settings` | User-level config (API key, alert preferences, retention) |
+| `bom_imports` | Records of uploaded BOM files with row-level validation results |
+| `verification_tokens` | Magic link email authentication tokens |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router, React Server Components) |
+| Language | TypeScript |
+| Database | Neon (serverless PostgreSQL) |
+| Real-time | Pusher (WebSockets) |
+| Authentication | NextAuth v5 (GitHub OAuth, magic link email, demo credentials) |
+| Styling | Tailwind CSS v4 |
+| Charts | Recharts |
+| File Parsing | PapaParse (CSV), SheetJS (Excel) |
+| Testing | Playwright |
+
+---
+
+## Getting Started
 
 ### Prerequisites
-*   Node.js 18+
-*   A **Neon** Database URL
-*   A **Pusher** Account (App ID, Key, Secret, Cluster)
 
-### Installation
+- Node.js 18 or later
+- A [Neon](https://neon.tech) database
+- A [Pusher](https://pusher.com) account
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/Emjaay20/Nexus-Integration.git
-    cd Nexus-Integration
-    ```
+### Setup
 
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
+Clone the repository and install dependencies:
 
-3.  **Configure Environment**:
-    Create a `.env` file:
-    ```env
-    DATABASE_URL="your_neon_postgres_url"
-    PUSHER_APP_ID="your_app_id"
-    NEXT_PUBLIC_PUSHER_KEY="your_key"
-    PUSHER_SECRET="your_secret"
-    NEXT_PUBLIC_PUSHER_CLUSTER="your_cluster"
-    ```
+```bash
+git clone https://github.com/Emjaay20/Nexus-Integration.git
+cd Nexus-Integration
+npm install
+```
 
-4.  **Run the App**:
-    ```bash
-    npm run dev
-    ```
-    Open [http://localhost:3000](http://localhost:3000).
+Create a `.env` file in the project root:
 
----
+```env
+DATABASE_URL="your_neon_postgres_url"
 
-## 🧪 Testing the System
+PUSHER_APP_ID="your_app_id"
+NEXT_PUBLIC_PUSHER_KEY="your_key"
+PUSHER_SECRET="your_secret"
+NEXT_PUBLIC_PUSHER_CLUSTER="your_cluster"
 
-You don't need a real Shopify store to test Nexus. We built a **Simulator**.
+AUTH_SECRET="generate_with_openssl_rand_base64_32"
+AUTH_URL="http://localhost:3000"
+```
 
-1.  Navigate to **Developer > API Playground** (`/developer/playground`).
-2.  Click **"Load Failure Example"**.
-3.  Click **"Send Request"**.
-4.  Navigate to **Integration Hub**. You will see the "E-Commerce Sync" card turn **Red (Error)** instantly.
+Run the database migration, then start the dev server:
 
----
+```bash
+node scripts/migrate.js
+npm run dev
+```
 
-## 🏗️ Built With
-*   **Framework**: Next.js 16 (App Router)
-*   **Database**: Neon (Serverless PostgreSQL)
-*   **Real-Time**: Pusher
-*   **Styling**: Tailwind CSS
-*   **Language**: TypeScript
+Open [http://localhost:3000](http://localhost:3000).
+
+### Demo Credentials
+
+You can sign in immediately without setting up OAuth:
+
+| Field | Value |
+|---|---|
+| Email | `demo@nexus.dev` |
+| Password | `demo1234` |
 
 ---
 
-*This project acts as a portfolio demonstration for a Forward Deployed Engineer role, showcasing full-stack capabilities from database design to real-time UI.*
+## Testing the Real-Time Flow
+
+You do not need external services connected to test the platform. The built-in simulator handles everything:
+
+1. Sign in and navigate to the **Integration Hub** dashboard.
+2. Open the **API Playground** at `/developer/playground` in a second tab.
+3. Select a preset (e.g. "Shopify Order Created") or write a custom payload.
+4. Click **Send Request**.
+5. Switch back to the dashboard. The event appears instantly in the activity feed.
+
+You can also test the BOM Importer by uploading the sample CSV available on the import page. On successful validation, it fires an event that also appears on the dashboard.
+
+---
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router pages and API routes
+│   ├── api/                # REST endpoints (auth, webhooks, BOM)
+│   ├── integration-hub/    # Dashboard, logs, analytics, settings
+│   ├── bom-importer/       # File upload and validation wizard
+│   ├── developer/          # API playground
+│   ├── login/              # Authentication page
+│   ├── docs/               # Feature documentation
+│   ├── api-reference/      # Endpoint reference
+│   └── status/             # System health page
+├── components/             # React components grouped by feature
+├── services/               # Business logic (integration service)
+├── lib/                    # Shared utilities (db, pusher, parser, validator)
+├── config/                 # Type definitions for integrations
+├── db/                     # SQL schema and seed data
+└── auth.ts                 # NextAuth configuration
+```
+
+---
+
+## License
+
+This project is a portfolio demonstration and is not intended for production use.
