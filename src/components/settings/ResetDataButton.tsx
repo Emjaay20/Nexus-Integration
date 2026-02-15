@@ -46,7 +46,7 @@ export function ResetDataButton() {
                 <div className="flex flex-wrap gap-4">
                     <button
                         onClick={() => { setAction('reset'); setShowModal(true); }}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
                     >
                         <RotateCcw className="w-4 h-4" />
                         Reset to Demo Data
@@ -67,9 +67,9 @@ export function ResetDataButton() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-in fade-in zoom-in-95">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${action === 'reset' ? 'bg-indigo-100' : 'bg-red-100'
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${action === 'reset' ? 'bg-blue-100' : 'bg-red-100'
                                 }`}>
-                                <AlertTriangle className={`w-5 h-5 ${action === 'reset' ? 'text-indigo-600' : 'text-red-600'
+                                <AlertTriangle className={`w-5 h-5 ${action === 'reset' ? 'text-blue-600' : 'text-red-600'
                                     }`} />
                             </div>
                             <h3 className="text-lg font-bold text-slate-900">
@@ -96,7 +96,7 @@ export function ResetDataButton() {
                                 onClick={handleAction}
                                 disabled={loading}
                                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${action === 'reset'
-                                        ? 'bg-indigo-600 hover:bg-indigo-700'
+                                        ? 'bg-blue-600 hover:bg-blue-700'
                                         : 'bg-red-600 hover:bg-red-700'
                                     } disabled:opacity-50`}
                             >

@@ -15,9 +15,9 @@ export function MetricsOverview({ totalEvents, successRate, failureCount, avgRes
             label: 'Total Events',
             value: totalEvents.toLocaleString(),
             icon: Activity,
-            color: 'text-indigo-600',
-            bg: 'bg-indigo-50',
-            border: 'border-indigo-100',
+            color: 'text-blue-600',
+            bg: 'bg-blue-50',
+            border: 'border-blue-100',
         },
         {
             label: 'Success Rate',

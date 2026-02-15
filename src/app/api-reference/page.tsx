@@ -10,7 +10,7 @@ export default function ApiReferencePage() {
                     <Link href="/" className="flex items-center gap-3 text-slate-500 hover:text-slate-900 transition-colors group">
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                                 </svg>
@@ -18,7 +18,7 @@ export default function ApiReferencePage() {
                             <span className="font-bold text-slate-900">Nexus.OS</span>
                         </div>
                     </Link>
-                    <Link href="/developer/playground" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1">
+                    <Link href="/developer/playground" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
                         <Send className="w-3.5 h-3.5" />
                         Try Playground →
                     </Link>
@@ -28,7 +28,7 @@ export default function ApiReferencePage() {
             <main className="max-w-5xl mx-auto px-6 py-16">
                 {/* Title */}
                 <div className="mb-16">
-                    <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase mb-4 block">API Reference</span>
+                    <span className="text-xs font-bold tracking-widest text-blue-600 uppercase mb-4 block">API Reference</span>
                     <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
                         REST API
                     </h1>
@@ -166,7 +166,7 @@ export default function ApiReferencePage() {
                     <p>&copy; 2026 Nexus Integration</p>
                     <div className="flex gap-6">
                         <Link href="/docs" className="hover:text-slate-600 transition-colors">Documentation</Link>
-                        <Link href="/api-reference" className="text-indigo-600 font-medium">API Reference</Link>
+                        <Link href="/api-reference" className="text-blue-600 font-medium">API Reference</Link>
                         <Link href="/status" className="hover:text-slate-600 transition-colors">Status</Link>
                     </div>
                 </div>

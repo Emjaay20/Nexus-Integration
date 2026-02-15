@@ -123,7 +123,7 @@ export default function IntegrationHubLayout({
 
                 <div className={clsx("p-4 border-t border-slate-800 transition-all", isCollapsed && "lg:items-center lg:justify-center lg:p-2")}>
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold shrink-0">JD</div>
+                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0">JD</div>
                         {(!isCollapsed || isMobileOpen) && (
                             <div className="text-sm overflow-hidden">
                                 <div className="text-white font-medium truncate">Forward Deployed</div>
@@ -155,7 +155,7 @@ function NavItem({ icon, label, href, active, collapsed }: { icon: React.ReactNo
             href={href}
             className={clsx(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
-                active ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-white hover:bg-slate-800',
+                active ? 'bg-blue-500/10 text-blue-400' : 'text-slate-400 hover:text-white hover:bg-slate-800',
                 collapsed ? "justify-center" : ""
             )}
             title={collapsed ? label : undefined}

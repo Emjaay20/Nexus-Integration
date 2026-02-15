@@ -10,14 +10,14 @@ export function DemoGuide() {
     if (!isVisible) return null;
 
     return (
-        <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start justify-between relative animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start justify-between relative animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex gap-4">
-                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0 text-2xl">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0 text-2xl">
                     👋
                 </div>
                 <div>
-                    <h3 className="text-indigo-900 font-bold mb-1">Welcome to the Integration Hub</h3>
-                    <p className="text-indigo-700 text-sm mb-3">
+                    <h3 className="text-blue-900 font-bold mb-1">Welcome to the Integration Hub</h3>
+                    <p className="text-blue-700 text-sm mb-3">
                         This is your real-time control tower. Try one of these actions and watch the feed update instantly:
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -30,7 +30,7 @@ export function DemoGuide() {
                         <Link
                             href="/developer/playground"
                             target="_blank"
-                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-colors"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors"
                         >
                             Open Simulator <ExternalLink className="w-3 h-3" />
                         </Link>
@@ -39,7 +39,7 @@ export function DemoGuide() {
             </div>
             <button
                 onClick={() => setIsVisible(false)}
-                className="text-indigo-400 hover:text-indigo-600 p-1"
+                className="text-blue-400 hover:text-blue-600 p-1"
             >
                 <X className="w-4 h-4" />
             </button>

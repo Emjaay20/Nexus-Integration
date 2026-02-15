@@ -60,7 +60,7 @@ export function RecentImports() {
                 {imports.map(imp => (
                     <div key={imp.id} className="px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-3">
-                            <FileSpreadsheet className="w-5 h-5 text-indigo-500" />
+                            <FileSpreadsheet className="w-5 h-5 text-blue-500" />
                             <div>
                                 <p className="text-sm font-medium text-slate-800">{imp.filename}</p>
                                 <p className="text-xs text-slate-500">

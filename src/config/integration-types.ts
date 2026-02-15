@@ -53,7 +53,7 @@ export const SUPPORTED_SYSTEMS: Record<string, IntegrationSystem> = {
         name: 'SAP S/4HANA',
         type: 'erp',
         icon: Box,
-        color: 'text-indigo-600 bg-indigo-50 border-indigo-200'
+        color: 'text-blue-600 bg-blue-50 border-blue-200'
     }
 };
 

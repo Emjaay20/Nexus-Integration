@@ -25,7 +25,7 @@ export default function StatusPage() {
                     <Link href="/" className="flex items-center gap-3 text-slate-500 hover:text-slate-900 transition-colors group">
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                                 </svg>
@@ -114,7 +114,7 @@ export default function StatusPage() {
                     <h2 className="text-xl font-bold text-slate-900 mb-6">Average Response Times</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            { label: 'API', value: '65ms', color: 'bg-indigo-50 text-indigo-700' },
+                            { label: 'API', value: '65ms', color: 'bg-blue-50 text-blue-700' },
                             { label: 'Database', value: '12ms', color: 'bg-emerald-50 text-emerald-700' },
                             { label: 'Auth', value: '38ms', color: 'bg-violet-50 text-violet-700' },
                             { label: 'Real-time', value: '22ms', color: 'bg-amber-50 text-amber-700' },
@@ -137,7 +137,7 @@ export default function StatusPage() {
                     <div className="flex gap-6">
                         <Link href="/docs" className="hover:text-slate-600 transition-colors">Documentation</Link>
                         <Link href="/api-reference" className="hover:text-slate-600 transition-colors">API Reference</Link>
-                        <Link href="/status" className="text-indigo-600 font-medium">Status</Link>
+                        <Link href="/status" className="text-blue-600 font-medium">Status</Link>
                     </div>
                 </div>
             </footer>

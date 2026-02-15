@@ -74,7 +74,7 @@ export function Navbar() {
                                         className="w-9 h-9 rounded-full border border-slate-200"
                                     />
                                 ) : (
-                                    <div className="w-9 h-9 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-600 font-medium text-sm">
+                                    <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 font-medium text-sm">
                                         {userInitials}
                                     </div>
                                 )}
@@ -90,7 +90,7 @@ export function Navbar() {
                     ) : status === 'unauthenticated' ? (
                         <Link
                             href="/login"
-                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                         >
                             Sign In
                         </Link>

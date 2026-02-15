@@ -151,7 +151,7 @@ export function ColumnMapper({ headers, data, onConfirm, onBack }: ColumnMapperP
                 <h2 className="text-2xl font-bold text-slate-900">Map Your Columns</h2>
                 <p className="text-slate-500">Matching your file columns to our system fields.</p>
                 {autoMappedCount > 0 && (
-                    <div className="mt-3 inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full text-sm font-medium">
+                    <div className="mt-3 inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
                         <Sparkles className="w-4 h-4" />
                         AI auto-mapped {autoMappedCount} of {Object.keys(mapping).length} fields
                     </div>

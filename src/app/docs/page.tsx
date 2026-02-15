@@ -10,7 +10,7 @@ export default function DocsPage() {
                     <Link href="/" className="flex items-center gap-3 text-slate-500 hover:text-slate-900 transition-colors group">
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                                 <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                                 </svg>
@@ -18,7 +18,7 @@ export default function DocsPage() {
                             <span className="font-bold text-slate-900">Nexus.OS</span>
                         </div>
                     </Link>
-                    <Link href="/login" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                    <Link href="/login" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                         Sign In →
                     </Link>
                 </div>
@@ -28,10 +28,10 @@ export default function DocsPage() {
                 {/* Title */}
                 <div className="mb-16">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-indigo-600" />
+                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <BookOpen className="w-5 h-5 text-blue-600" />
                         </div>
-                        <span className="text-xs font-bold tracking-widest text-indigo-600 uppercase">Documentation</span>
+                        <span className="text-xs font-bold tracking-widest text-blue-600 uppercase">Documentation</span>
                     </div>
                     <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
                         Getting Started with Nexus
@@ -162,11 +162,11 @@ export default function DocsPage() {
                             </div>
                         </div>
                         <div className="flex items-start gap-4 bg-white border border-slate-200 rounded-xl p-5">
-                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
                                 <span className="text-white text-xs font-bold">✉</span>
                             </div>
                             <div>
-                                <h3 className="font-bold text-slate-900">Magic Link <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">Recommended</span></h3>
+                                <h3 className="font-bold text-slate-900">Magic Link <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">Recommended</span></h3>
                                 <p className="text-sm text-slate-500">Passwordless email login via Resend. Click a link, you're in.</p>
                             </div>
                         </div>
@@ -207,7 +207,7 @@ export default function DocsPage() {
                                     ['RESEND_API_KEY', 'Optional', 'Resend API key for magic link emails'],
                                 ].map(([name, required, desc]) => (
                                     <tr key={name}>
-                                        <td className="py-3 px-4 font-mono text-xs text-indigo-700 bg-indigo-50/30">{name}</td>
+                                        <td className="py-3 px-4 font-mono text-xs text-blue-700 bg-blue-50/30">{name}</td>
                                         <td className="py-3 px-4">
                                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${required === 'Yes' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                                                 {required}
@@ -226,7 +226,7 @@ export default function DocsPage() {
                 <div className="max-w-5xl mx-auto px-6 flex items-center justify-between text-sm text-slate-400">
                     <p>&copy; 2026 Nexus Integration</p>
                     <div className="flex gap-6">
-                        <Link href="/docs" className="text-indigo-600 font-medium">Documentation</Link>
+                        <Link href="/docs" className="text-blue-600 font-medium">Documentation</Link>
                         <Link href="/api-reference" className="hover:text-slate-600 transition-colors">API Reference</Link>
                         <Link href="/status" className="hover:text-slate-600 transition-colors">Status</Link>
                     </div>
@@ -240,7 +240,7 @@ function FeatureDoc({ icon, title, description, items }: any) {
     return (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
                     {icon}
                 </div>
                 <h3 className="font-bold text-slate-900">{title}</h3>
@@ -249,7 +249,7 @@ function FeatureDoc({ icon, title, description, items }: any) {
             <ul className="space-y-1.5">
                 {items.map((item: string, i: number) => (
                     <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                        <span className="text-indigo-400 mt-0.5">•</span>
+                        <span className="text-blue-400 mt-0.5">•</span>
                         {item}
                     </li>
                 ))}

@@ -8,10 +8,10 @@ const ONBOARDED_KEY = 'nexus_onboarded';
 
 const slides = [
     {
-        icon: <Sparkles className="w-8 h-8 text-indigo-500" />,
+        icon: <Sparkles className="w-8 h-8 text-blue-500" />,
         title: 'Welcome to Nexus Integration Hub',
         description: 'Your all-in-one platform for managing supply chain integrations, monitoring activity, and analyzing performance.',
-        color: 'bg-indigo-50 border-indigo-200',
+        color: 'bg-blue-50 border-blue-200',
     },
     {
         icon: <LayoutGrid className="w-8 h-8 text-emerald-500" />,
@@ -109,7 +109,7 @@ export function WelcomeTour() {
                                     key={i}
                                     onClick={() => setCurrentSlide(i)}
                                     className={`w-2 h-2 rounded-full transition-all ${i === currentSlide
-                                            ? 'bg-indigo-600 w-6'
+                                            ? 'bg-blue-600 w-6'
                                             : 'bg-slate-200 hover:bg-slate-300'
                                         }`}
                                 />
@@ -128,7 +128,7 @@ export function WelcomeTour() {
                             )}
                             <button
                                 onClick={handleNext}
-                                className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                                className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                             >
                                 {isLast ? 'Get Started' : 'Next'}
                                 <ArrowRight className="w-4 h-4" />

@@ -88,7 +88,7 @@ export function LoginForm() {
                 </div>
                 <button
                     onClick={() => { setMagicLinkSent(false); setEmail(''); }}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                 >
                     ← Try a different email
                 </button>
@@ -136,7 +136,7 @@ export function LoginForm() {
                 >
                     <Mail className="w-4 h-4" />
                     Magic Link
-                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md leading-none">
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md leading-none">
                         ★
                     </span>
                 </button>
@@ -165,14 +165,14 @@ export function LoginForm() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@company.com"
                             required
-                            className="w-full px-0 py-3 border-0 border-b-2 border-slate-200 bg-transparent text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-indigo-500 transition-colors text-[15px]"
+                            className="w-full px-0 py-3 border-0 border-b-2 border-slate-200 bg-transparent text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 transition-colors text-[15px]"
                         />
                     </div>
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-xl font-semibold text-sm tracking-wide uppercase hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200/50"
+                        className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-xl font-semibold text-sm tracking-wide uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200/50"
                     >
                         {loading ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -196,10 +196,10 @@ export function LoginForm() {
             {/* ── Demo Tab ── */}
             {activeTab === 'demo' && (
                 <div className="space-y-5">
-                    <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl p-5">
+                    <div className="bg-gradient-to-br from-blue-50 to-violet-50 border border-blue-100 rounded-xl p-5">
                         <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                                <Sparkles className="w-4 h-4 text-indigo-600" />
+                            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                                <Sparkles className="w-4 h-4 text-blue-600" />
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-slate-800 mb-1">Try the full experience</p>
@@ -213,7 +213,7 @@ export function LoginForm() {
                     <button
                         onClick={handleDemoLogin}
                         disabled={demoLoading}
-                        className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-xl font-semibold text-sm tracking-wide uppercase hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200/50"
+                        className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-xl font-semibold text-sm tracking-wide uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200/50"
                     >
                         {demoLoading ? (
                             <Loader2 className="w-5 h-5 animate-spin" />

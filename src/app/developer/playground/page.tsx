@@ -16,7 +16,7 @@ export default function ApiPlaygroundPage() {
         <div className="min-h-screen bg-slate-50 p-8">
             <div className="max-w-6xl mx-auto">
                 <header className="mb-10">
-                    <div className="flex items-center gap-3 text-indigo-600 mb-2">
+                    <div className="flex items-center gap-3 text-blue-600 mb-2">
                         <Terminal className="w-6 h-6" />
                         <span className="font-bold tracking-tight">NEXUS DEVELOPER</span>
                     </div>
@@ -33,24 +33,24 @@ export default function ApiPlaygroundPage() {
                         <PlaygroundRequest onResponse={handleResponse} />
 
                         {/* Documentation Snippet */}
-                        <div className="bg-indigo-50 rounded-xl p-6 border border-indigo-100 flex-1">
-                            <h3 className="font-semibold text-indigo-900 flex items-center gap-2 mb-3">
+                        <div className="bg-blue-50 rounded-xl p-6 border border-blue-100 flex-1">
+                            <h3 className="font-semibold text-blue-900 flex items-center gap-2 mb-3">
                                 <Book className="w-4 h-4" /> Quick Docs
                             </h3>
-                            <p className="text-sm text-indigo-800 mb-4">
+                            <p className="text-sm text-blue-800 mb-4">
                                 Use this endpoint to simulate incoming webhooks from external providers.
                             </p>
 
                             <div className="space-y-3">
                                 <div>
-                                    <div className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-1">Authorization</div>
-                                    <code className="text-xs bg-white px-2 py-1 rounded border border-indigo-200 block overflow-hidden text-ellipsis text-indigo-600">
+                                    <div className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-1">Authorization</div>
+                                    <code className="text-xs bg-white px-2 py-1 rounded border border-blue-200 block overflow-hidden text-ellipsis text-blue-600">
                                         Bearer sk_test_51Mx...
                                     </code>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-1">Rate Limit</div>
-                                    <div className="text-xs text-indigo-700">100 req/min</div>
+                                    <div className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-1">Rate Limit</div>
+                                    <div className="text-xs text-blue-700">100 req/min</div>
                                 </div>
                             </div>
                         </div>

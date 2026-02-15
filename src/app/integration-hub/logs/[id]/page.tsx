@@ -14,7 +14,7 @@ export default async function IntegrationLogPage({ params }: { params: Promise<{
             <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold text-slate-900 mb-2">Log Not Found</h1>
-                    <Link href="/integration-hub" className="text-indigo-600 hover:underline">
+                    <Link href="/integration-hub" className="text-blue-600 hover:underline">
                         Return to Dashboard
                     </Link>
                 </div>
