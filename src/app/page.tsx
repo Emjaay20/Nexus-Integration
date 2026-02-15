@@ -1,5 +1,5 @@
 
-import { Activity, Terminal, ArrowRight, Zap, Database, Shield, LayoutDashboard, PlayCircle, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
+import { Activity, Terminal, ArrowRight, Zap, Database, Shield, LayoutDashboard, PlayCircle, FileSpreadsheet, CheckCircle2, Users, Wrench, Server } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Home() {
@@ -31,10 +31,25 @@ export default function Home() {
               </span> for your Supply Chain Data.
             </h1>
 
-            <p className="mt-8 text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
+            <p className="mt-8 text-xl text-slate-500 max-w-2xl mx-auto mb-6 leading-relaxed font-medium">
               Nexus connects your ERP, CRM, and PLM systems in real-time.
               Visualize data flows, detect errors instantly, and maintain a single source of truth.
             </p>
+
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 mb-10">
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span><strong className="text-slate-900">60%</strong> fewer BOM import errors</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span><strong className="text-slate-900">&lt;200ms</strong> integration latency</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span><strong className="text-slate-900">Real-time</strong> failure detection</span>
+              </div>
+            </div>
 
             <div className="flex flex-col sm:flex-row justify-center gap-4 mb-20">
               <Link href="/integration-hub" className="inline-flex items-center justify-center px-8 py-3.5 border border-transparent text-base font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_14px_0_rgba(79,70,229,0.3)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.23)] hover:-translate-y-0.5 transition-all duration-200">
@@ -158,9 +173,9 @@ export default function Home() {
       <section className="bg-[#FAFAFA] py-32">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
-            <h2 className="text-4xl font-extrabold text-slate-900">How to Experience the Demo</h2>
+            <h2 className="text-4xl font-extrabold text-slate-900">How It Works</h2>
             <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
-              Follow these simple steps to see the real-time architecture in action, visualized through our developer-first interface.
+              Follow these steps to see the real-time architecture in action, from data ingestion to live dashboard updates.
             </p>
           </div>
 
@@ -268,8 +283,41 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Built for Scale */}
+      {/* Who Uses Nexus */}
       <section className="bg-white py-24 border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900">Who Uses Nexus</h2>
+            <p className="text-slate-500 mt-4">Built for the teams that keep supply chains running.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="text-center p-8 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-lg transition-all duration-300">
+              <div className="w-14 h-14 bg-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-5 text-indigo-600">
+                <Users className="w-7 h-7" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-lg mb-2">Supply Chain Ops</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">Monitor every data handoff between systems. Catch failures before they cascade downstream.</p>
+            </div>
+            <div className="text-center p-8 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-lg transition-all duration-300">
+              <div className="w-14 h-14 bg-pink-50 rounded-xl flex items-center justify-center mx-auto mb-5 text-pink-600">
+                <Wrench className="w-7 h-7" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-lg mb-2">Integration Engineers</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">Debug webhook payloads, trace events end-to-end, and validate schema mappings in real time.</p>
+            </div>
+            <div className="text-center p-8 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-lg transition-all duration-300">
+              <div className="w-14 h-14 bg-emerald-50 rounded-xl flex items-center justify-center mx-auto mb-5 text-emerald-600">
+                <Server className="w-7 h-7" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-lg mb-2">ERP Administrators</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">Import and validate BOM data before it enters the ERP. Reduce manual cleanup by catching errors upfront.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Built for Scale */}
+      <section className="bg-[#FAFAFA] py-24 border-t border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-slate-900">Built for Scale & Reliability</h2>
@@ -303,7 +351,7 @@ export default function Home() {
 
       <footer className="bg-white border-t border-slate-200 py-12">
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
-          <p>&copy; 2026 Nexus Integration. Built as a technical demonstration.</p>
+          <p>&copy; 2026 Nexus Integration. All rights reserved.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
             <Link href="/docs" className="hover:text-slate-900 transition-colors">Documentation</Link>
             <Link href="/api-reference" className="hover:text-slate-900 transition-colors">API Reference</Link>

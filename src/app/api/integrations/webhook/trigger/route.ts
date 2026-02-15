@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         const userId = session.user.id;
 
         const body = await request.json();
-        const { event, source, payload } = body;
+        const { event, source, payload, status: requestedStatus } = body;
 
         if (!event || !source) {
             return NextResponse.json(
@@ -34,23 +34,70 @@ export async function POST(request: NextRequest) {
         else if (source === 'bom-importer') integration = 'bom-importer';
         else integration = source;
 
+        const logStatus = requestedStatus === 'failure' ? 'failure' : 'success';
+
         const log = await integrationService.addActivityLog(userId, {
             event: event,
             integration: integration,
-            status: 'success',
+            status: logStatus,
             duration: `${Math.floor(Math.random() * 500) + 100}ms`,
             payload: JSON.stringify(payload, null, 2),
-            response: {
+            response: logStatus === 'success' ? {
                 status: 200,
                 statusText: 'OK',
                 headers: { 'Content-Type': 'application/json' }
-            }
+            } : undefined,
+            error: logStatus === 'failure' ? {
+                name: 'IntegrationError',
+                message: `Failed to sync with ${source}: connection timeout`,
+                code: 'ERR_TIMEOUT'
+            } : undefined,
         });
 
         try {
             await pusherServer.trigger('integration-hub', 'new-activity', log);
         } catch (pusherError) {
             console.error('Pusher Error:', pusherError);
+        }
+
+        // Failure recovery lifecycle: failure → retrying → recovered
+        if (logStatus === 'failure') {
+            // Schedule retry after 1.5 seconds
+            setTimeout(async () => {
+                try {
+                    const retryLog = await integrationService.addActivityLog(userId, {
+                        event: `Retry: ${event}`,
+                        integration: integration,
+                        status: 'retrying',
+                        duration: '...',
+                        payload: JSON.stringify(payload, null, 2),
+                    });
+                    await pusherServer.trigger('integration-hub', 'new-activity', retryLog);
+
+                    // Schedule recovery after another 1.5 seconds
+                    setTimeout(async () => {
+                        try {
+                            const recoveredLog = await integrationService.addActivityLog(userId, {
+                                event: `Recovered: ${event}`,
+                                integration: integration,
+                                status: 'recovered',
+                                duration: `${Math.floor(Math.random() * 300) + 200}ms`,
+                                payload: JSON.stringify(payload, null, 2),
+                                response: {
+                                    status: 200,
+                                    statusText: 'OK',
+                                    headers: { 'Content-Type': 'application/json' }
+                                },
+                            });
+                            await pusherServer.trigger('integration-hub', 'new-activity', recoveredLog);
+                        } catch (err) {
+                            console.error('Recovery log error:', err);
+                        }
+                    }, 1500);
+                } catch (err) {
+                    console.error('Retry log error:', err);
+                }
+            }, 1500);
         }
 
         return NextResponse.json({

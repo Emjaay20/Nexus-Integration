@@ -1,22 +1,23 @@
 // Force TS re-evaluation
 
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Activity, Wifi, Clock, AlertTriangle } from 'lucide-react';
 import { IntegrationCard } from '@/components/integration-hub/IntegrationCard';
 import { ActivityFeed } from '@/components/integration-hub/ActivityFeed';
 import { LiveActivityFeedWrapper } from '@/components/integration-hub/LiveActivityFeedWrapper';
 import { integrationService } from '@/services/integrationService';
-import { DemoGuide } from '@/components/demo/DemoGuide';
 import { getCurrentUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function IntegrationHubPage() {
     const userId = await getCurrentUserId();
-    const integrationConfigs = await integrationService.getIntegrations(userId);
+    const [integrationConfigs, stats] = await Promise.all([
+        integrationService.getIntegrations(userId),
+        integrationService.getDashboardStats(userId),
+    ]);
 
     return (
         <div className="p-8">
-            <DemoGuide />
             <header className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
@@ -26,6 +27,34 @@ export default async function IntegrationHubPage() {
                     <RefreshCw className="w-4 h-4 text-slate-400" /> Refresh Status
                 </button>
             </header>
+
+            {/* Anchor Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                    <div className="flex items-center gap-2 text-slate-500 text-xs font-medium mb-1">
+                        <Wifi className="w-3.5 h-3.5" /> Active Integrations
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">{stats.activeIntegrations}</div>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                    <div className="flex items-center gap-2 text-slate-500 text-xs font-medium mb-1">
+                        <Activity className="w-3.5 h-3.5" /> Events Today
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">{stats.eventsToday}</div>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                    <div className="flex items-center gap-2 text-slate-500 text-xs font-medium mb-1">
+                        <Clock className="w-3.5 h-3.5" /> Avg Latency
+                    </div>
+                    <div className="text-2xl font-extrabold text-slate-900">{stats.avgLatency}</div>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                    <div className="flex items-center gap-2 text-slate-500 text-xs font-medium mb-1">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Failures Today
+                    </div>
+                    <div className={`text-2xl font-extrabold ${stats.failuresToday > 0 ? 'text-red-600' : 'text-slate-900'}`}>{stats.failuresToday}</div>
+                </div>
+            </div>
 
             {/* Integration Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -63,3 +92,4 @@ export default async function IntegrationHubPage() {
         </div>
     );
 }
+

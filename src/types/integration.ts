@@ -1,5 +1,5 @@
 export type IntegrationStatus = 'healthy' | 'warning' | 'error';
-export type LogStatus = 'success' | 'failure';
+export type LogStatus = 'success' | 'failure' | 'retrying' | 'recovered';
 
 export interface IntegrationConfig {
     id: string;

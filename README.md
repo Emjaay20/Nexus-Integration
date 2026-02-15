@@ -2,7 +2,7 @@
 
 A supply chain integration platform that monitors, visualizes, and manages data flows between enterprise systems in real time.
 
-Built as a technical demonstration for a Forward Deployed Engineer role. The application connects simulated ERP, CRM, and PLM systems through a centralized dashboard, providing a single point of visibility into system health, data synchronization events, and error detection.
+Nexus connects ERP, CRM, and PLM systems through a centralized dashboard, providing a single point of visibility into system health, data synchronization events, and error detection.
 
 ---
 
@@ -99,7 +99,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Demo Credentials
+### Quick Start Credentials
 
 You can sign in immediately without setting up OAuth:
 
@@ -112,7 +112,7 @@ You can sign in immediately without setting up OAuth:
 
 ## Testing the Real-Time Flow
 
-You do not need external services connected to test the platform. The built-in simulator handles everything:
+You do not need external services connected to verify the platform works. The built-in simulator handles everything:
 
 1. Sign in and navigate to the **Integration Hub** dashboard.
 2. Open the **API Playground** at `/developer/playground` in a second tab.
@@ -149,4 +149,4 @@ src/
 
 ## License
 
-This project is a portfolio demonstration and is not intended for production use.
+MIT
