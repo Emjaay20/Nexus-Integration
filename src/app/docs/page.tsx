@@ -182,6 +182,216 @@ export default function DocsPage() {
                     </div>
                 </section>
 
+                {/* Connecting External Systems */}
+                <section className="mb-16">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-3">Connecting External Systems</h2>
+                    <p className="text-slate-600 mb-8">
+                        Send webhook events from any system to your Nexus dashboard using the webhook API.
+                        All you need is your API key.
+                    </p>
+
+                    {/* Step 1: Get your API key */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                            Get your API key
+                        </h3>
+                        <p className="text-sm text-slate-600 mb-3">
+                            Sign in, navigate to <strong>Integration Hub → Settings</strong>, and copy your API key.
+                            It looks like <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">sk_live_abc123...</code>.
+                            You can rotate it at any time — the old key is immediately invalidated.
+                        </p>
+                    </div>
+
+                    {/* Step 2: Send a webhook */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                            Send a webhook event
+                        </h3>
+                        <p className="text-sm text-slate-600 mb-4">
+                            Make a <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">POST</code> request
+                            to <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">/api/integrations/webhook/trigger</code> with
+                            your API key in the <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">Authorization</code> header.
+                        </p>
+
+                        {/* Endpoint reference */}
+                        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded">POST</span>
+                                <code className="text-sm font-mono text-slate-700">/api/integrations/webhook/trigger</code>
+                            </div>
+                            <div className="text-sm text-slate-600 mb-4">
+                                <strong className="text-slate-900">Headers</strong>
+                            </div>
+                            <div className="bg-slate-50 rounded-lg p-3 font-mono text-xs text-slate-600 mb-4">
+                                <div>Content-Type: application/json</div>
+                                <div>Authorization: Bearer <span className="text-blue-600">YOUR_API_KEY</span></div>
+                            </div>
+                            <div className="text-sm text-slate-600 mb-3">
+                                <strong className="text-slate-900">Request Body</strong>
+                            </div>
+                            <table className="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="text-left py-2 px-3 font-semibold text-slate-700 text-xs">Field</th>
+                                        <th className="text-left py-2 px-3 font-semibold text-slate-700 text-xs">Type</th>
+                                        <th className="text-left py-2 px-3 font-semibold text-slate-700 text-xs">Required</th>
+                                        <th className="text-left py-2 px-3 font-semibold text-slate-700 text-xs">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-xs">
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-blue-700">event</td>
+                                        <td className="py-2 px-3 text-slate-500">string</td>
+                                        <td className="py-2 px-3"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">Yes</span></td>
+                                        <td className="py-2 px-3 text-slate-600">Event name, e.g. &quot;order.created&quot;</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-blue-700">source</td>
+                                        <td className="py-2 px-3 text-slate-500">string</td>
+                                        <td className="py-2 px-3"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">Yes</span></td>
+                                        <td className="py-2 px-3 text-slate-600">System identifier: shopify, salesforce, arena, or custom</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-blue-700">payload</td>
+                                        <td className="py-2 px-3 text-slate-500">object</td>
+                                        <td className="py-2 px-3"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Optional</span></td>
+                                        <td className="py-2 px-3 text-slate-600">Arbitrary JSON payload data</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-blue-700">status</td>
+                                        <td className="py-2 px-3 text-slate-500">string</td>
+                                        <td className="py-2 px-3"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Optional</span></td>
+                                        <td className="py-2 px-3 text-slate-600">Set to &quot;failure&quot; to trigger the retry lifecycle</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Step 3: Example requests */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                            Example requests
+                        </h3>
+
+                        {/* curl */}
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">curl</span>
+                            </div>
+                            <div className="bg-slate-900 rounded-xl p-5 text-sm font-mono text-slate-300 overflow-x-auto">
+                                <div><span className="text-emerald-400">$</span> curl -X POST https://your-domain.com/api/integrations/webhook/trigger \</div>
+                                <div className="pl-4">-H &quot;Content-Type: application/json&quot; \</div>
+                                <div className="pl-4">-H &quot;Authorization: Bearer <span className="text-blue-400">sk_live_your_key_here</span>&quot; \</div>
+                                <div className="pl-4">{`-d '{"event": "order.created", "source": "shopify", "payload": {"order_id": "ORD-9281", "total": 249.99}}'`}</div>
+                            </div>
+                        </div>
+
+                        {/* JavaScript */}
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">JavaScript (fetch)</span>
+                            </div>
+                            <div className="bg-slate-900 rounded-xl p-5 text-sm font-mono text-slate-300 overflow-x-auto whitespace-pre">{`const res = await fetch("/api/integrations/webhook/trigger", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer sk_live_your_key_here"
+  },
+  body: JSON.stringify({
+    event: "inventory.update",
+    source: "shopify",
+    payload: { sku: "NEXUS-001", qty: 450 }
+  })
+});
+
+const data = await res.json();
+console.log(data);`}</div>
+                        </div>
+
+                        {/* Python */}
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Python (requests)</span>
+                            </div>
+                            <div className="bg-slate-900 rounded-xl p-5 text-sm font-mono text-slate-300 overflow-x-auto whitespace-pre">{`import requests
+
+res = requests.post(
+    "https://your-domain.com/api/integrations/webhook/trigger",
+    headers={
+        "Content-Type": "application/json",
+        "Authorization": "Bearer sk_live_your_key_here"
+    },
+    json={
+        "event": "lead.converted",
+        "source": "salesforce",
+        "payload": {"lead_id": "00Q1234", "account": "Acme Corp"}
+    }
+)
+
+print(res.json())`}</div>
+                        </div>
+                    </div>
+
+                    {/* Failure Recovery */}
+                    <div className="mb-8">
+                        <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                            Failure recovery lifecycle
+                        </h3>
+                        <p className="text-sm text-slate-600 mb-4">
+                            When you send an event with <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">{`"status": "failure"`}</code>,
+                            Nexus automatically handles retry and recovery:
+                        </p>
+                        <div className="flex items-center gap-3 text-sm mb-4 flex-wrap">
+                            <span className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg font-bold text-xs border border-red-200">Failed</span>
+                            <span className="text-slate-400">→ 1.5s →</span>
+                            <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-bold text-xs border border-amber-200">Retrying</span>
+                            <span className="text-slate-400">→ 1.5s →</span>
+                            <span className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold text-xs border border-emerald-200">Recovered</span>
+                        </div>
+                        <p className="text-sm text-slate-500">
+                            Each transition is broadcast in real time via WebSocket and appears instantly in your dashboard activity feed.
+                            The integration status updates from <strong className="text-slate-700">error</strong> → <strong className="text-slate-700">healthy</strong> once recovered.
+                        </p>
+                    </div>
+
+                    {/* Supported Sources */}
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+                            Supported sources
+                        </h3>
+                        <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Source</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Maps To</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-slate-700">Example Events</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {[
+                                    ['shopify', 'ecommerce-sync', 'order.created, inventory.update'],
+                                    ['salesforce', 'crm-updates', 'lead.converted, contact.updated'],
+                                    ['arena', 'plm-erp', 'bom.revision, part.released'],
+                                    ['bom-importer', 'bom-importer', 'bom.import.completed'],
+                                    ['(any string)', '(uses value as-is)', 'Any custom event name'],
+                                ].map(([source, maps, events]) => (
+                                    <tr key={source}>
+                                        <td className="py-3 px-4 font-mono text-xs text-blue-700 bg-blue-50/30">{source}</td>
+                                        <td className="py-3 px-4 font-mono text-xs text-slate-600">{maps}</td>
+                                        <td className="py-3 px-4 text-slate-600">{events}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
                 {/* Environment Variables */}
                 <section>
                     <h2 className="text-2xl font-bold text-slate-900 mb-6">Environment Variables</h2>

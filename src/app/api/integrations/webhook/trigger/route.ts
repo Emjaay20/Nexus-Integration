@@ -3,19 +3,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import { integrationService } from '@/services/integrationService';
 import { pusherServer } from '@/lib/pusher';
 import { auth } from '@/auth';
+import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+async function resolveUserId(request: NextRequest): Promise<string | null> {
+    // Method 1: Session auth (browser / playground)
+    const session = await auth();
+    if (session?.user?.id) return session.user.id;
+
+    // Method 2: API key auth (external systems)
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+        const apiKey = authHeader.slice(7);
+        try {
+            const result = await db.query(
+                'SELECT user_id FROM organization_settings WHERE api_key = $1',
+                [apiKey]
+            );
+            if (result.rows.length > 0) return result.rows[0].user_id;
+        } catch (error) {
+            console.error('API key lookup error:', error);
+        }
+    }
+
+    return null;
+}
+
 export async function POST(request: NextRequest) {
     try {
-        const session = await auth();
-        if (!session?.user?.id) {
+        const userId = await resolveUserId(request);
+        if (!userId) {
             return NextResponse.json(
-                { success: false, message: 'Unauthorized' },
+                { success: false, message: 'Unauthorized. Provide a valid session cookie or Bearer API key.' },
                 { status: 401 }
             );
         }
-        const userId = session.user.id;
 
         const body = await request.json();
         const { event, source, payload, status: requestedStatus } = body;
