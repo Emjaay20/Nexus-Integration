@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutGrid, FileSpreadsheet, Activity, Terminal, LogOut } from 'lucide-react';
+import { LayoutGrid, FileSpreadsheet, Activity, Terminal, LogOut, Sun, Moon } from 'lucide-react';
 import clsx from 'clsx';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 export function Navbar() {
     const pathname = usePathname();
     const { data: session, status } = useSession();
+    const { theme, toggleTheme } = useTheme();
 
     // Hide navbar on login page
     if (pathname === '/login') return null;
@@ -24,15 +26,15 @@ export function Navbar() {
         : '?';
 
     return (
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-50 h-16">
+        <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 h-16 transition-colors">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
                 <div className="flex items-center gap-8">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight text-slate-900">
+                    <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight text-slate-900 dark:text-white">
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
                             <LayoutGrid className="w-5 h-5" />
                         </div>
-                        Nexus<span className="text-blue-600">.OS</span>
+                        Nexus<span className="text-blue-600 dark:text-blue-400">.OS</span>
                     </Link>
 
                     {/* Desktop Nav */}
@@ -46,8 +48,8 @@ export function Navbar() {
                                     className={clsx(
                                         "px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
                                         isActive
-                                            ? "bg-slate-100 text-blue-600"
-                                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                            ? "bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
                                     )}
                                 >
                                     <item.icon className="w-4 h-4" />
@@ -58,30 +60,39 @@ export function Navbar() {
                     </nav>
                 </div>
 
-                {/* Right side — session-aware */}
-                <div className="flex items-center gap-4">
+                {/* Right side */}
+                <div className="flex items-center gap-3">
+                    {/* Dark mode toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                    >
+                        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    </button>
+
                     {status === 'authenticated' && session?.user ? (
                         <div className="flex items-center gap-3">
-                            <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-slate-200">
+                            <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-slate-200 dark:border-slate-700">
                                 <div className="text-right">
-                                    <div className="text-sm font-medium text-slate-900">{session.user.name || session.user.email}</div>
-                                    <div className="text-xs text-slate-500">Admin Workspace</div>
+                                    <div className="text-sm font-medium text-slate-900 dark:text-white">{session.user.name || session.user.email}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Admin Workspace</div>
                                 </div>
                                 {session.user.image ? (
                                     <img
                                         src={session.user.image}
                                         alt={session.user.name || "User"}
-                                        className="w-9 h-9 rounded-full border border-slate-200"
+                                        className="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-600"
                                     />
                                 ) : (
-                                    <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 font-medium text-sm">
+                                    <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 flex items-center justify-center text-blue-600 dark:text-blue-300 font-medium text-sm">
                                         {userInitials}
                                     </div>
                                 )}
                             </div>
                             <button
                                 onClick={() => signOut({ callbackUrl: '/login' })}
-                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                 title="Sign out"
                             >
                                 <LogOut className="w-4 h-4" />
@@ -95,7 +106,7 @@ export function Navbar() {
                             Sign In
                         </Link>
                     ) : (
-                        <div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />
+                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 animate-pulse" />
                     )}
                 </div>
             </div>

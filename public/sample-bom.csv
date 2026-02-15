@@ -1,14 +1,20 @@
-Part Number,Description,Manufacturer,MPN,Quantity,Unit Price,Category
-NEXUS-CAP-001,100nF Ceramic Capacitor,Murata,GRM155R71C104KA88D,500,0.012,Capacitor
-NEXUS-RES-002,10k Ohm Resistor 0402,Yageo,RC0402FR-0710KL,1000,0.003,Resistor
-NEXUS-IC-003,ARM Cortex-M4 MCU,STMicroelectronics,STM32F411CEU6,50,4.85,IC
-NEXUS-LED-004,White LED 0603,Wurth Elektronik,150060WS75000,200,0.045,LED
-NEXUS-CON-005,USB-C Connector,Molex,2171750001,100,0.89,Connector
-NEXUS-IND-006,4.7uH Inductor,TDK,VLF3010AT-4R7MR68,300,0.15,Inductor
-NEXUS-DIO-007,Schottky Diode,Nexperia,PMEG3010ER,150,0.08,Diode
-NEXUS-XTAL-008,32.768kHz Crystal,Abracon,ABS07-32.768KHZ-T,75,0.35,Crystal
-NEXUS-REG-009,3.3V LDO Regulator,Texas Instruments,TLV1117-33IDCYR,100,0.42,Regulator
-NEXUS-FET-010,N-Channel MOSFET,Infineon,IRLML6344TRPBF,200,0.18,MOSFET
-INVALID-001,Missing Manufacturer,,UNKNOWN-MPN,25,0.00,Unknown
-,Empty Part Number Row,Samsung,,10,1.50,IC
-NEXUS-RES-099,Duplicate Check,Yageo,RC0402FR-0710KL,50,0.003,Resistor
+Part Number,Description,Manufacturer,Quantity,Unit Price,Category,Status
+NEXUS-MCU-001,ARM Cortex-M4 Microcontroller,STMicroelectronics,500,4.25,Electronics,Active
+NEXUS-CAP-100,100µF Ceramic Capacitor,Murata,2000,0.12,Passive Components,Active
+NEXUS-RES-470,470Ω Resistor 1/4W,Yageo,5000,0.02,Passive Components,Active
+NEXUS-PCB-MAIN,Main Controller PCB 4-Layer,PCBWay,500,8.50,PCB,Active
+NEXUS-CON-USB,USB-C Connector SMD,Amphenol,1000,0.85,Connectors,Active
+NEXUS-LED-GRN,Green LED 0805 SMD,Wurth,3000,0.08,Optoelectronics,Active
+NEXUS-IC-REG,3.3V LDO Voltage Regulator,Texas Instruments,1000,1.20,Power,Active
+NEXUS-SW-TACT,Tactile Push Button 6mm,Alps Alpine,2000,0.15,Mechanical,Active
+NEXUS-XTAL-16,16MHz Crystal Oscillator,Abracon,500,0.45,Frequency Control,Active
+NEXUS-HDR-40,40-Pin Male Header 2.54mm,Samtec,1500,0.30,Connectors,Active
+NEXUS-FET-N01,N-Channel MOSFET SOT-23,Infineon,1000,0.35,Semiconductors,Active
+NEXUS-IND-10U,10µH Power Inductor,TDK,800,0.55,Passive Components,Active
+NEXUS-DIODE-01,Schottky Barrier Diode,ON Semiconductor,1200,0.18,Semiconductors,Active
+NEXUS-EEP-256,256Kb EEPROM I2C,Microchip,600,0.90,Memory,Active
+NEXUS-FUSE-01,500mA SMD Fuse,Littelfuse,1000,0.22,Protection,Active
+NEXUS-BUZZ-01,Piezo Buzzer 5V,TDK,400,1.10,Electromechanical,Pending Review
+NEXUS-ANT-2G4,2.4GHz Chip Antenna,Johanson Technology,300,0.75,RF,Active
+NEXUS-SEN-TMP,Digital Temperature Sensor,Sensirion,250,2.80,Sensors,Active
+NEXUS-BAT-CR,CR2032 Battery Holder,Keystone,400,0.40,Mechanical,Active

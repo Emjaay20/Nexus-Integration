@@ -4,6 +4,7 @@ import { RefreshCw, Activity, Wifi, Clock, AlertTriangle } from 'lucide-react';
 import { IntegrationCard } from '@/components/integration-hub/IntegrationCard';
 import { ActivityFeed } from '@/components/integration-hub/ActivityFeed';
 import { LiveActivityFeedWrapper } from '@/components/integration-hub/LiveActivityFeedWrapper';
+import { GettingStartedBanner } from '@/components/integration-hub/GettingStartedBanner';
 import { integrationService } from '@/services/integrationService';
 import { getCurrentUserId } from '@/lib/session';
 
@@ -27,6 +28,8 @@ export default async function IntegrationHubPage() {
                     <RefreshCw className="w-4 h-4 text-slate-400" /> Refresh Status
                 </button>
             </header>
+
+            <GettingStartedBanner />
 
             {/* Anchor Metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

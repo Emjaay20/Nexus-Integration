@@ -105,7 +105,48 @@ export function PlaygroundRequest({ onResponse }: PlaygroundRequestProps) {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                    <button
+                        onClick={() => setBody(JSON.stringify({
+                            event: "inventory.update",
+                            source: "shopify",
+                            payload: {
+                                sku: "NEXUS-001",
+                                qty: 450
+                            }
+                        }, null, 2))}
+                        className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 hover:bg-blue-100 transition-colors"
+                    >
+                        Shopify Success
+                    </button>
+                    <button
+                        onClick={() => setBody(JSON.stringify({
+                            event: "lead.converted",
+                            source: "salesforce",
+                            payload: {
+                                lead_id: "00Q5f00000GJwXp",
+                                account: "Acme Corp",
+                                value: 128000
+                            }
+                        }, null, 2))}
+                        className="text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded border border-purple-100 hover:bg-purple-100 transition-colors"
+                    >
+                        Salesforce Lead
+                    </button>
+                    <button
+                        onClick={() => setBody(JSON.stringify({
+                            event: "bom.revision",
+                            source: "arena",
+                            payload: {
+                                part_number: "NEXUS-MCU-001",
+                                revision: "C",
+                                change_order: "ECO-2026-0042"
+                            }
+                        }, null, 2))}
+                        className="text-xs px-2 py-1 bg-teal-50 text-teal-600 rounded border border-teal-100 hover:bg-teal-100 transition-colors"
+                    >
+                        Arena BOM Revision
+                    </button>
                     <button
                         onClick={() => setBody(JSON.stringify({
                             event: "inventory.update",
@@ -118,20 +159,7 @@ export function PlaygroundRequest({ onResponse }: PlaygroundRequestProps) {
                         }, null, 2))}
                         className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded border border-red-100 hover:bg-red-100 transition-colors"
                     >
-                        Load Failure Example
-                    </button>
-                    <button
-                        onClick={() => setBody(JSON.stringify({
-                            event: "inventory.update",
-                            source: "shopify",
-                            payload: {
-                                sku: "NEXUS-001",
-                                qty: 450
-                            }
-                        }, null, 2))}
-                        className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 hover:bg-blue-100 transition-colors"
-                    >
-                        Load Success Example
+                        Failure → Retry
                     </button>
                 </div>
 
