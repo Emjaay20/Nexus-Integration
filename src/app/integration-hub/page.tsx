@@ -18,7 +18,7 @@ export default async function IntegrationHubPage() {
     ]);
 
     return (
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
             <header className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>

@@ -75,7 +75,7 @@ export async function ActivityFeed() {
                                 <p className="text-xs text-slate-500 truncate">{log.integration}</p>
                             </div>
 
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="hidden sm:block opacity-0 group-hover:opacity-100 transition-opacity">
                                 <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">View Logs</span>
                             </div>
                         </div>
