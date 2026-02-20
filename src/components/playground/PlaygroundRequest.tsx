@@ -12,7 +12,7 @@ interface PlaygroundRequestProps {
 export function PlaygroundRequest({ onResponse }: PlaygroundRequestProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [method, setMethod] = useState('POST');
-    const [endpoint, setEndpoint] = useState('/api/integrations/webhook/trigger');
+    const [endpoint, setEndpoint] = useState('/api/v1/events');
     const [body, setBody] = useState(`{
   "event": "inventory.update",
   "source": "shopify",
@@ -28,16 +28,12 @@ export function PlaygroundRequest({ onResponse }: PlaygroundRequestProps) {
         try {
             const parsedBody = JSON.parse(body);
 
-            const response = await fetch('/api/integrations/webhook/trigger', {
-                method: 'POST',
+            const response = await fetch(endpoint, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    method,
-                    endpoint,
-                    ...parsedBody
-                }),
+                body: body, // Send raw body from textarea
             });
 
             const data = await response.json();

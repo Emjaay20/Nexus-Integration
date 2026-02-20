@@ -17,9 +17,83 @@ export const integrationService = {
         }
     },
 
-    getActivityLogs: async (userId: string): Promise<IntegrationLog[]> => {
+    createIntegration: async (userId: string, integration: Omit<IntegrationConfig, 'lastRun' | 'uptime'>, credentials?: Record<string, string>): Promise<IntegrationConfig> => {
         try {
-            const result = await db.query('SELECT * FROM activity_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [userId]);
+            // Check if it already exists
+            const existing = await db.query('SELECT * FROM integrations WHERE user_id = $1 AND id = $2', [userId, integration.id]);
+            if (existing.rows.length > 0) {
+                // Update credentials if provided
+                if (credentials) {
+                    try {
+                        await db.query('UPDATE integrations SET credentials = $1, status = $2 WHERE user_id = $3 AND id = $4', [
+                            JSON.stringify(credentials), 'healthy', userId, integration.id
+                        ]);
+                    } catch { /* credentials column may not exist yet */ }
+                }
+                const row = existing.rows[0];
+                return {
+                    ...row,
+                    lastRun: new Date(row.last_run).toLocaleString(),
+                    uptime: row.uptime || '0%'
+                };
+            }
+
+            // Try insert with credentials column first
+            try {
+                const result = await db.query(
+                    `INSERT INTO integrations (id, user_id, name, source, destination, status, last_run, uptime, credentials)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW(), '100%', $7)
+                     RETURNING *`,
+                    [integration.id, userId, integration.name, integration.source, integration.destination, integration.status, credentials ? JSON.stringify(credentials) : null]
+                );
+                const row = result.rows[0];
+                return {
+                    ...row,
+                    lastRun: new Date(row.last_run).toLocaleString(),
+                    uptime: row.uptime || '100%'
+                };
+            } catch (colError: any) {
+                // Fallback: credentials column doesn't exist yet
+                if (colError.message?.includes('credentials')) {
+                    const result = await db.query(
+                        `INSERT INTO integrations (id, user_id, name, source, destination, status, last_run, uptime)
+                         VALUES ($1, $2, $3, $4, $5, $6, NOW(), '100%')
+                         RETURNING *`,
+                        [integration.id, userId, integration.name, integration.source, integration.destination, integration.status]
+                    );
+                    const row = result.rows[0];
+                    return {
+                        ...row,
+                        lastRun: new Date(row.last_run).toLocaleString(),
+                        uptime: row.uptime || '100%'
+                    };
+                }
+                throw colError;
+            }
+        } catch (error) {
+            console.error('Failed to create integration:', error);
+            throw error;
+        }
+    },
+
+    getActivityLogs: async (userId: string, status?: string, integrationId?: string): Promise<IntegrationLog[]> => {
+        try {
+            let query = 'SELECT * FROM activity_logs WHERE user_id = $1';
+            const params: any[] = [userId];
+
+            if (status && status !== 'all') {
+                params.push(status);
+                query += ` AND status = $${params.length}`;
+            }
+
+            if (integrationId) {
+                params.push(integrationId);
+                query += ` AND integration_id = $${params.length}`;
+            }
+
+            query += ' ORDER BY created_at DESC LIMIT 50';
+
+            const result = await db.query(query, params);
             return result.rows.map(row => ({
                 id: row.id,
                 integration: row.integration_id || 'Unknown',
@@ -241,6 +315,16 @@ export const integrationService = {
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
             return { activeIntegrations: 0, eventsToday: 0, avgLatency: '~120ms', failuresToday: 0 };
+        }
+    },
+    getSettings: async (userId: string) => {
+        try {
+            const result = await db.query('SELECT * FROM organization_settings WHERE user_id = $1', [userId]);
+            if (result.rows.length === 0) return null;
+            return result.rows[0];
+        } catch (error) {
+            console.error('Failed to fetch settings:', error);
+            return null;
         }
     },
 };

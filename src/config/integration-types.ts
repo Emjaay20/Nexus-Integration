@@ -1,5 +1,5 @@
 
-import { ShoppingBag, Database, MessageSquare, Box, Globe, Archive } from 'lucide-react';
+import { ShoppingBag, Database, MessageSquare, Box, Globe, Archive, Factory } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
 export type SystemType = 'ecommerce' | 'erp' | 'crm' | 'plm' | 'communication' | 'other';
@@ -54,6 +54,13 @@ export const SUPPORTED_SYSTEMS: Record<string, IntegrationSystem> = {
         type: 'erp',
         icon: Box,
         color: 'text-blue-600 bg-blue-50 border-blue-200'
+    },
+    katana: {
+        id: 'katana',
+        name: 'Katana MRP',
+        type: 'erp',
+        icon: Factory,
+        color: 'text-emerald-600 bg-emerald-50 border-emerald-200'
     }
 };
 

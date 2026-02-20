@@ -5,16 +5,25 @@ import { IntegrationCard } from '@/components/integration-hub/IntegrationCard';
 import { ActivityFeed } from '@/components/integration-hub/ActivityFeed';
 import { LiveActivityFeedWrapper } from '@/components/integration-hub/LiveActivityFeedWrapper';
 import { GettingStartedBanner } from '@/components/integration-hub/GettingStartedBanner';
+import { ActivityFeedFilters } from '@/components/integration-hub/ActivityFeedFilters';
 import { integrationService } from '@/services/integrationService';
 import { getCurrentUserId } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export default async function IntegrationHubPage() {
+export default async function IntegrationHubPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ status?: string }>;
+}) {
+    const params = await searchParams;
+    const statusFilter = params.status || 'all';
     const userId = await getCurrentUserId();
-    const [integrationConfigs, stats] = await Promise.all([
+
+    const [integrationConfigs, stats, activityLogs] = await Promise.all([
         integrationService.getIntegrations(userId),
         integrationService.getDashboardStats(userId),
+        integrationService.getActivityLogs(userId, statusFilter),
     ]);
 
     return (
@@ -64,6 +73,7 @@ export default async function IntegrationHubPage() {
                 {integrationConfigs.map((config) => (
                     <IntegrationCard
                         key={config.id}
+                        id={config.id}
                         name={config.name}
                         source={config.source}
                         destination={config.destination}
@@ -76,19 +86,26 @@ export default async function IntegrationHubPage() {
 
             {/* Recent Activity Section */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-start">
+                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
                     <div>
-                        <h2 className="font-bold text-slate-900">Live Activity Feed</h2>
+                        <h2 className="font-bold text-slate-900">Activity Feed</h2>
                         <p className="text-xs text-slate-500">Real-time webhooks and sync events</p>
                     </div>
-                    <span className="flex h-3 w-3 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
+                    <div className="flex items-center gap-4">
+                        <span className="flex h-3 w-3 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                    </div>
                 </div>
+
+                <div className="bg-slate-50 px-6 py-2 border-b border-slate-100">
+                    <ActivityFeedFilters />
+                </div>
+
                 <div className="p-0">
                     <LiveActivityFeedWrapper>
-                        <ActivityFeed />
+                        <ActivityFeed initialLogs={activityLogs} />
                     </LiveActivityFeedWrapper>
                 </div>
             </div>

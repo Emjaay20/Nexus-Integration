@@ -18,10 +18,18 @@ export async function getSettings() {
 export async function updateSettings(data: { email_alerts: boolean; slack_alerts: boolean; retention_days: number }) {
     try {
         const userId = await getCurrentUserId();
-        await db.query(
-            'UPDATE organization_settings SET email_alerts = $1, slack_alerts = $2, retention_days = $3 WHERE user_id = $4',
-            [data.email_alerts, data.slack_alerts, data.retention_days, userId]
-        );
+        const existing = await db.query('SELECT * FROM organization_settings WHERE user_id = $1', [userId]);
+        if (existing.rows.length === 0) {
+            await db.query(
+                'INSERT INTO organization_settings (user_id, email_alerts, slack_alerts, retention_days) VALUES ($1, $2, $3, $4)',
+                [userId, data.email_alerts, data.slack_alerts, data.retention_days]
+            );
+        } else {
+            await db.query(
+                'UPDATE organization_settings SET email_alerts = $1, slack_alerts = $2, retention_days = $3 WHERE user_id = $4',
+                [data.email_alerts, data.slack_alerts, data.retention_days, userId]
+            );
+        }
         revalidatePath('/integration-hub/settings');
         return { success: true };
     } catch (error) {
@@ -34,7 +42,17 @@ export async function rotateApiKey() {
     try {
         const userId = await getCurrentUserId();
         const newKey = 'sk_live_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        await db.query('UPDATE organization_settings SET api_key = $1 WHERE user_id = $2', [newKey, userId]);
+
+        const existing = await db.query('SELECT * FROM organization_settings WHERE user_id = $1', [userId]);
+        if (existing.rows.length === 0) {
+            await db.query(
+                'INSERT INTO organization_settings (user_id, api_key, email_alerts, slack_alerts, retention_days) VALUES ($1, $2, false, false, 30)',
+                [userId, newKey]
+            );
+        } else {
+            await db.query('UPDATE organization_settings SET api_key = $1 WHERE user_id = $2', [newKey, userId]);
+        }
+
         revalidatePath('/integration-hub/settings');
         return { success: true, apiKey: newKey };
     } catch (error) {

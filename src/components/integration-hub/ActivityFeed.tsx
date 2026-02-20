@@ -35,10 +35,11 @@ const statusConfig = {
     },
 };
 
+import { IntegrationLog } from '@/types/integration';
+
 // Display a list of recent integration activities
-export async function ActivityFeed() {
-    const userId = await getCurrentUserId();
-    const logs = await integrationService.getActivityLogs(userId);
+export function ActivityFeed({ initialLogs }: { initialLogs: IntegrationLog[] }) {
+    const logs = initialLogs;
 
     return (
         <div className="divide-y divide-slate-100">

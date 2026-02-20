@@ -64,3 +64,26 @@ CREATE TABLE IF NOT EXISTS verification_tokens (
     expires TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Shopify Connections
+CREATE TABLE IF NOT EXISTS shopify_connections (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    shop_domain VARCHAR(255) NOT NULL,
+    access_token TEXT NOT NULL,
+    scope TEXT,
+    installed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, shop_domain)
+);
+
+-- ERP Connections (Generic)
+CREATE TABLE IF NOT EXISTS erp_connections (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    api_endpoint TEXT NOT NULL,
+    auth_header TEXT, -- e.g. "Bearer sk_..."
+    mapping_config JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, name)
+);

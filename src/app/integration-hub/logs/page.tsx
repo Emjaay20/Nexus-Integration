@@ -1,23 +1,39 @@
-
 import { ActivityFeed } from '@/components/integration-hub/ActivityFeed';
 import { Filter } from 'lucide-react';
+import { getCurrentUserId } from '@/lib/session';
+import { integrationService } from '@/services/integrationService';
+import { ActivityFeedFilters } from '@/components/integration-hub/ActivityFeedFilters';
 
-export default function LogsPage() {
+export default async function LogsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ status?: string; integrationId?: string }>;
+}) {
+    const params = await searchParams;
+    const userId = await getCurrentUserId();
+    const logs = await integrationService.getActivityLogs(userId, params.status, params.integrationId);
+
     return (
         <div className="p-8">
             <header className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Activity Logs</h1>
-                    <p className="text-slate-500">Full history of system integration events.</p>
+                    <p className="text-slate-500">
+                        {params.integrationId
+                            ? `Showing history for integration: ${params.integrationId}`
+                            : 'Full history of system integration events.'}
+                    </p>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm">
-                    <Filter className="w-4 h-4 text-slate-400" /> Filter Overview
-                </button>
+                {/* Removed generic filter button in favor of inline filters for now, or keep it as a placeholder */}
             </header>
+
+            <div className="mb-6">
+                <ActivityFeedFilters />
+            </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-0">
-                    <ActivityFeed />
+                    <ActivityFeed initialLogs={logs} />
                 </div>
             </div>
         </div>

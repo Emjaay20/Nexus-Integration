@@ -87,23 +87,29 @@ export function ImporterWizard() {
         setIsParsing(true);
         setStep(2); // Move to processing step immediately to show loading UI
 
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+
         try {
-            // dynamic import to avoid SSR issues with some libraries if needed, though standard import is fine here
-            const { parseFile } = await import('@/lib/file-parser');
-            const result = await parseFile(uploadedFile);
+            const response = await fetch('/api/bom/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to parse file');
+            }
+
+            const result = await response.json();
 
             setParsedData(result.data);
-            setHeaders(result.headers);
+            setHeaders(result.headers || Object.keys(result.data[0] || {}));
 
-            // Artificial delay for better UX
-            setTimeout(() => {
-                setIsParsing(false);
-            }, 800);
-
+            setIsParsing(false);
         } catch (error) {
             console.error("Parsing failed", error);
             setIsParsing(false);
-            // Handle error state (TODO)
+            // Handle error state (TODO: add toast or alert)
         }
     };
 
