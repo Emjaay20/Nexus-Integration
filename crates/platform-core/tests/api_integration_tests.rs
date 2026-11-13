@@ -1,14 +1,14 @@
-//! End-to-End Integration Tests for Luminovo Platform Core HTTP API
+//! End-to-End Integration Tests for the Platform Core HTTP API
 
 use actix_web::{test, web, App};
-use luminovo_platform_core::ai_copilot::AiCopilotEngine;
-use luminovo_platform_core::api::{self, AppState};
-use luminovo_platform_core::authz::{PolicyEngine, PolicySet};
+use nexus_platform_core::ai_copilot::AiCopilotEngine;
+use nexus_platform_core::api::{self, AppState};
+use nexus_platform_core::authz::{PolicyEngine, PolicySet};
 use serde_json::json;
 use std::sync::Arc;
 
 fn create_test_state() -> web::Data<AppState> {
-    let policy_engine = Arc::new(PolicyEngine::new(PolicySet::default_luminovo_policies()));
+    let policy_engine = Arc::new(PolicyEngine::new(PolicySet::default_policies()));
     let ai_copilot = Arc::new(AiCopilotEngine::new());
     web::Data::new(AppState {
         policy_engine,
@@ -30,24 +30,23 @@ async fn test_health_check_endpoint() {
     let resp: serde_json::Value = test::call_and_read_body_json(&app, req).await;
 
     assert_eq!(resp["status"], "healthy");
-    assert_eq!(resp["service"], "luminovo-platform-core");
+    assert_eq!(resp["service"], "nexus-platform-core");
     assert!(resp["active_policies"].as_u64().unwrap() >= 4);
 }
 
 #[actix_rt::test]
 async fn test_evaluate_policy_endpoint() {
     let app_state = create_test_state();
-    let app = test::init_service(
-        App::new()
-            .app_data(app_state)
-            .route("/api/v1/authz/evaluate", web::post().to(api::evaluate_policy)),
-    )
+    let app = test::init_service(App::new().app_data(app_state).route(
+        "/api/v1/authz/evaluate",
+        web::post().to(api::evaluate_policy),
+    ))
     .await;
 
     let payload = json!({
         "subject": {
             "user_id": "usr-oem-101",
-            "tenant_id": "bosch-oem",
+            "tenant_id": "acme-oem",
             "role": "design_engineer",
             "clearance": "confidential",
             "attributes": {}
@@ -56,7 +55,7 @@ async fn test_evaluate_policy_endpoint() {
         "resource": {
             "resource_id": "bom-pcba-x1",
             "resource_type": "bom",
-            "tenant_id": "bosch-oem",
+            "tenant_id": "acme-oem",
             "sensitivity": "confidential",
             "attributes": {}
         },
@@ -80,17 +79,16 @@ async fn test_evaluate_policy_endpoint() {
 #[actix_rt::test]
 async fn test_cross_tenant_denial_endpoint() {
     let app_state = create_test_state();
-    let app = test::init_service(
-        App::new()
-            .app_data(app_state)
-            .route("/api/v1/authz/evaluate", web::post().to(api::evaluate_policy)),
-    )
+    let app = test::init_service(App::new().app_data(app_state).route(
+        "/api/v1/authz/evaluate",
+        web::post().to(api::evaluate_policy),
+    ))
     .await;
 
     let payload = json!({
         "subject": {
             "user_id": "usr-oem-101",
-            "tenant_id": "bosch-oem",
+            "tenant_id": "acme-oem",
             "role": "design_engineer",
             "clearance": "confidential",
             "attributes": {}
@@ -99,7 +97,7 @@ async fn test_cross_tenant_denial_endpoint() {
         "resource": {
             "resource_id": "bom-pcba-x1",
             "resource_type": "bom",
-            "tenant_id": "siemens-oem", // Mismatched tenant
+            "tenant_id": "globex-oem", // Mismatched tenant
             "sensitivity": "confidential",
             "attributes": {}
         },
@@ -147,11 +145,10 @@ async fn test_bom_parse_endpoint() {
 #[actix_rt::test]
 async fn test_agent_validate_rule_endpoint() {
     let app_state = create_test_state();
-    let app = test::init_service(
-        App::new()
-            .app_data(app_state)
-            .route("/api/v1/agent/validate-rule", web::post().to(api::validate_agent_rule)),
-    )
+    let app = test::init_service(App::new().app_data(app_state).route(
+        "/api/v1/agent/validate-rule",
+        web::post().to(api::validate_agent_rule),
+    ))
     .await;
 
     let payload = json!({
@@ -182,11 +179,10 @@ async fn test_agent_validate_rule_endpoint() {
 #[actix_rt::test]
 async fn test_agent_profile_query_endpoint() {
     let app_state = create_test_state();
-    let app = test::init_service(
-        App::new()
-            .app_data(app_state)
-            .route("/api/v1/agent/profile-query", web::post().to(api::profile_agent_query)),
-    )
+    let app = test::init_service(App::new().app_data(app_state).route(
+        "/api/v1/agent/profile-query",
+        web::post().to(api::profile_agent_query),
+    ))
     .await;
 
     let payload = json!({

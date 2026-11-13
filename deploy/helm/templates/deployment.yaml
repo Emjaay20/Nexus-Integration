@@ -35,11 +35,11 @@ spec:
             - name: PORT
               value: "8080"
             - name: RUST_LOG
-              value: "info,luminovo_platform_core=debug"
+              value: "info,nexus_platform_core=debug"
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: luminovo-secrets
+                  name: platform-core-secrets
                   key: gemini-api-key
                   optional: true
           livenessProbe:

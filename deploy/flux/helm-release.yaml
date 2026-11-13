@@ -10,7 +10,7 @@ spec:
       chart: ./deploy/helm
       sourceRef:
         kind: GitRepository
-        name: luminovo-monorepo
+        name: nexus-integration
         namespace: flux-system
       interval: 1m
   values:

@@ -14,7 +14,7 @@ export default function HelpCenterPage() {
                             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                                 <LifeBuoy className="w-4 h-4 text-white" />
                             </div>
-                            <span className="font-bold text-white">Lumi Enablement</span>
+                            <span className="font-bold text-white">Nexus Integration</span>
                         </div>
                     </Link>
                     <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
@@ -107,7 +107,7 @@ export default function HelpCenterPage() {
 
             <footer className="border-t border-slate-200 bg-white py-12">
                 <div className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between text-sm text-slate-500 gap-4">
-                    <p>&copy; 2026 Lumi Enablement Portal</p>
+                    <p>&copy; 2026 Nexus Integration</p>
                     <div className="flex gap-6">
                         <Link href="/docs" className="font-medium text-slate-900">Help Center</Link>
                         <Link href="/integration-hub" className="hover:text-slate-900 transition-colors">Dashboard</Link>

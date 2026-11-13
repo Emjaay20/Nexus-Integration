@@ -54,15 +54,15 @@ export default function Home() {
             <span className="text-xs font-mono font-medium px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">
               INDUSTRIAL INTEGRATION SUITE
             </span>
-            <span className="text-xs font-mono text-slate-500">v0.1.0 • Hybrid Rust/Next.js Architecture</span>
+            <span className="text-xs font-mono text-slate-500">v0.1.0 • Rust service + Next.js app</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white max-w-4xl leading-tight">
-            Electronics Supply Chain Integration & BOM Ingestion Engine
+            Electronics Supply Chain Integration & BOM Ingestion
           </h1>
 
           <p className="text-base sm:text-lg text-slate-400 max-w-3xl leading-relaxed">
-            Ingest and normalize 50,000-line customer Bill of Materials, evaluate multi-tenant access in under 25µs, and monitor synchronization events across ERP, PLM, and e-commerce systems.
+            Import and normalize customer Bills of Materials, evaluate multi-tenant access rules, and monitor synchronization events across ERP and e-commerce systems.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-4">
@@ -91,20 +91,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Real Ingestion Table Preview (Replaces Fake Terminal) */}
+      {/* Sample BOM table */}
       <section className="max-w-6xl mx-auto px-6 py-12 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-              Live Ingestion & Component Validation Preview
+              Sample BOM After Import
             </h2>
             <p className="text-xs text-slate-500">
-              Sample PCBA line items parsed and validated with zero-copy MPN normalization.
+              Example PCBA line items showing MPN normalization and lifecycle flags.
             </p>
           </div>
           <span className="text-xs font-mono text-emerald-400 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Verified Schema Matching
+            Example data
           </span>
         </div>
 
@@ -153,13 +153,13 @@ export default function Home() {
           <div className="border border-slate-800 bg-slate-900 rounded-lg p-5 space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
               <FileSpreadsheet className="w-4 h-4 text-blue-400" />
-              Streaming BOM Parser
+              BOM Parser
             </div>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Replaces in-browser file freezing with streaming chunk ingestion. Normalizes vendor tape-and-reel suffixes and validates reference designator syntax.
+              Maps customer columns to a standard schema, normalizes vendor tape-and-reel suffixes, and validates quantities and reference designators.
             </p>
             <div className="pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-500">
-              Tech: Rust Tokio channels & PapaParse fallback
+              Tech: PapaParse in the browser, Rust parser in Platform Core
             </div>
           </div>
 
@@ -169,10 +169,10 @@ export default function Home() {
               ABAC Permissions Engine
             </div>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Evaluates multi-tenant boundaries between OEMs, EMS providers, and component distributors in under 25µs using an in-memory lock-free ArcSwap decision point.
+              Evaluates access between OEMs, EMS providers, and component distributors against an in-memory policy set that can be hot-reloaded without blocking requests.
             </p>
             <div className="pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-500">
-              Tech: In-Memory ArcSwap AST & Zero-Copy Rules
+              Tech: Rust, ArcSwap policy snapshot
             </div>
           </div>
 
@@ -182,7 +182,7 @@ export default function Home() {
               Real-Time Activity Feed
             </div>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Ingests external webhook streams from Shopify, Salesforce, and PLM tools onto isolated private channels with measured wall-clock latencies.
+              Receives webhooks from connected systems such as Shopify and pushes them to each user over a private channel, with every event stored for audit.
             </p>
             <div className="pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-500">
               Tech: Private Pusher Channels & PostgreSQL Audit
@@ -194,7 +194,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 mt-16 py-8 px-6 text-xs font-mono text-slate-500">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div>LumiFlow OS / Nexus Enterprise • Designed for Electronics Manufacturing</div>
+          <div>Nexus.OS • Designed for Electronics Manufacturing</div>
           <div className="flex items-center gap-4">
             <Link href="/status" className="hover:text-slate-300 transition">
               Live System Status

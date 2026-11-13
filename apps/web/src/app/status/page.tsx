@@ -41,20 +41,20 @@ async function checkDatabase(): Promise<ServiceCheck> {
 async function checkRustCore(): Promise<ServiceCheck> {
     const start = performance.now();
     try {
-        const res = await fetch('http://127.0.0.1:8088/health', { cache: 'no-store' });
+        const res = await fetch(`${process.env.RUST_BACKEND_URL || 'http://127.0.0.1:8088'}/health`, { cache: 'no-store' });
         const elapsed = Math.round(performance.now() - start);
         if (res.ok) {
             return {
-                name: 'Luminovo Rust Core Monolith (actix-web)',
-                description: 'ABAC Permissions PDP, Zero-Copy BOM Parser & Prometheus Exporter',
+                name: 'Platform Core (Rust, actix-web)',
+                description: 'Permissions engine, BOM parser and Prometheus metrics',
                 status: 'operational',
                 latencyMs: elapsed,
                 icon: Cpu,
             };
         }
         return {
-            name: 'Luminovo Rust Core Monolith (actix-web)',
-            description: 'ABAC Permissions PDP, Zero-Copy BOM Parser & Prometheus Exporter',
+            name: 'Platform Core (Rust, actix-web)',
+            description: 'Permissions engine, BOM parser and Prometheus metrics',
             status: 'degraded',
             latencyMs: elapsed,
             icon: Cpu,
@@ -62,12 +62,12 @@ async function checkRustCore(): Promise<ServiceCheck> {
         };
     } catch (err: unknown) {
         return {
-            name: 'Luminovo Rust Core Monolith (actix-web)',
-            description: 'ABAC Permissions PDP, Zero-Copy BOM Parser & Prometheus Exporter',
+            name: 'Platform Core (Rust, actix-web)',
+            description: 'Permissions engine, BOM parser and Prometheus metrics',
             status: 'offline',
             latencyMs: Math.round(performance.now() - start),
             icon: Cpu,
-            error: 'Daemon unreachable on port 8088',
+            error: 'Platform Core is unreachable',
         };
     }
 }

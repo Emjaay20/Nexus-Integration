@@ -1,12 +1,12 @@
 [package]
-name = "luminovo-platform-core"
+name = "nexus-platform-core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [lib]
-name = "luminovo_platform_core"
+name = "nexus_platform_core"
 path = "src/lib.rs"
 
 [[bin]]

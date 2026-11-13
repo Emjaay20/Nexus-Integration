@@ -1,5 +1,5 @@
 kind: Project
-name: luminovo-platform
+name: nexus-platform
 environments:
   - name: local
   - name: staging
@@ -7,7 +7,7 @@ environments:
 kind: Module
 name: platform-core
 type: container
-description: Luminovo Team Core Rust Monolith with live code sync
+description: Platform Core Rust service with live code sync
 build:
   dependencies: []
 services:

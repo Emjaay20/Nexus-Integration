@@ -1,6 +1,5 @@
 //! Developer Agent Platform Bridge (MCP & Automation Interface)
 //!
-//! Directly addresses the Team Core mandate: "Help our engineers use agents more productively".
 //! Exposes structured platform tools that AI coding agents (Cursor, Claude, internal bots)
 //! can call to validate rules, profile queries, and run policy simulations.
 
@@ -51,7 +50,7 @@ pub struct QueryProfileResponse {
 pub struct AgentBridge;
 
 impl AgentBridge {
-    /// Validates a proposed permission rule against Team Core enterprise security standards.
+    /// Validates a proposed permission rule against the platform security rules.
     pub fn validate_policy_rule(rule: &PolicyRule) -> RuleValidationResponse {
         let mut findings = Vec::new();
         let mut score: i32 = 100;
@@ -76,7 +75,7 @@ impl AgentBridge {
             findings.push(SecurityFinding {
                 severity: FindingSeverity::Critical,
                 title: "Restricted Pricing Export without NDA".to_string(),
-                description: "Exporting confidential pricing models requires a signed NDA under Luminovo compliance rules.".to_string(),
+                description: "Exporting confidential pricing models requires a signed NDA under the platform compliance rules.".to_string(),
                 remediation: "Set 'require_nda: true' on this policy rule.".to_string(),
             });
         }
@@ -96,7 +95,9 @@ impl AgentBridge {
         }
 
         let final_score = score.clamp(0, 100) as u32;
-        let is_valid = findings.iter().all(|f| f.severity != FindingSeverity::Critical);
+        let is_valid = findings
+            .iter()
+            .all(|f| f.severity != FindingSeverity::Critical);
 
         RuleValidationResponse {
             is_valid,
@@ -124,7 +125,9 @@ impl AgentBridge {
         }
 
         // Check 3: Missing LIMIT on large tables
-        if (upper.contains("FROM BOM_ITEMS") || upper.contains("FROM QUOTATIONS") || upper.contains("FROM COMPONENTS"))
+        if (upper.contains("FROM BOM_ITEMS")
+            || upper.contains("FROM QUOTATIONS")
+            || upper.contains("FROM COMPONENTS"))
             && !upper.contains("LIMIT")
         {
             anti_patterns.push("Unbounded Result Set: Large table query without LIMIT can cause Out-Of-Memory (OOM) under high concurrency.".to_string());

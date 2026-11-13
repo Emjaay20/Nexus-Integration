@@ -31,7 +31,7 @@ export function ProductTour() {
 
     // Auto-start tour if they haven't seen it
     useEffect(() => {
-        const hasSeenTour = localStorage.getItem('lumi-bom-tour');
+        const hasSeenTour = localStorage.getItem('nexus-bom-tour');
         if (!hasSeenTour) {
             // Small delay to let page load
             setTimeout(() => setIsOpen(true), 1500);
@@ -40,7 +40,7 @@ export function ProductTour() {
 
     const closeTour = () => {
         setIsOpen(false);
-        localStorage.setItem('lumi-bom-tour', 'true');
+        localStorage.setItem('nexus-bom-tour', 'true');
     };
 
     const nextStep = () => {

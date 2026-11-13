@@ -1,4 +1,4 @@
-//! Actix-Web API Handlers and Routing for Luminovo Platform Core
+//! Actix-Web API Handlers and Routing for Platform Core
 
 use crate::agent_bridge::{AgentBridge, QueryProfileRequest, RuleValidationRequest};
 use crate::ai_copilot::{AiCopilotEngine, AlternateMatchRequest, SourcingRiskRequest};
@@ -40,7 +40,7 @@ pub async fn health_check(data: web::Data<AppState>) -> impl Responder {
     let policy_count = data.policy_engine.get_policies().rules.len();
     HttpResponse::Ok().json(HealthResponse {
         status: "healthy",
-        service: "luminovo-platform-core",
+        service: "nexus-platform-core",
         version: env!("CARGO_PKG_VERSION"),
         active_policies: policy_count,
         timestamp: chrono::Utc::now().to_rfc3339(),
@@ -63,7 +63,8 @@ pub async fn evaluate_policy(
         .policy_engine
         .evaluate(&req.subject, &req.action, &req.resource, &ctx);
 
-    metrics::counter!("authz_evaluations_total", "decision" => format!("{:?}", result.decision)).increment(1);
+    metrics::counter!("authz_evaluations_total", "decision" => format!("{:?}", result.decision))
+        .increment(1);
     metrics::histogram!("authz_evaluation_duration_nanos").record(result.latency_nanos as f64);
 
     HttpResponse::Ok().json(result)
@@ -99,7 +100,10 @@ pub async fn analyze_sourcing_risk(
     data: web::Data<AppState>,
     req: web::Json<SourcingRiskRequest>,
 ) -> impl Responder {
-    let report = data.ai_copilot.analyze_sourcing_risk(req.into_inner()).await;
+    let report = data
+        .ai_copilot
+        .analyze_sourcing_risk(req.into_inner())
+        .await;
     metrics::counter!("ai_sourcing_analyses_total").increment(1);
 
     HttpResponse::Ok().json(report)
@@ -109,7 +113,10 @@ pub async fn match_alternate_parts(
     data: web::Data<AppState>,
     req: web::Json<AlternateMatchRequest>,
 ) -> impl Responder {
-    let res = data.ai_copilot.match_alternate_parts(req.into_inner()).await;
+    let res = data
+        .ai_copilot
+        .match_alternate_parts(req.into_inner())
+        .await;
     metrics::counter!("ai_alternate_matches_total").increment(1);
 
     HttpResponse::Ok().json(res)

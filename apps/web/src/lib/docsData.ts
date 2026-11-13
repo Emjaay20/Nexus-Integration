@@ -11,7 +11,7 @@ Finally, click "Validate". The system will highlight any errors like missing qua
         id: 'doc-2',
         title: 'How to connect Shopify',
         content: `To connect your Shopify store, go to Settings > Integrations and select "Connect Shopify".
-You will be redirected to the Shopify admin panel to authorize the Lumi Enablement Hub.
+You will be redirected to the Shopify admin panel to authorize the Nexus Integration Hub.
 Once authorized, we will automatically sync your products and orders in real-time using webhooks.
 You can monitor the sync status in the Integration Hub dashboard.`,
     },

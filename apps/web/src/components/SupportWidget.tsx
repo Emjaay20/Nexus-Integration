@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function SupportWidget() {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([
-        { role: 'ai', content: 'Hi! I am the Lumi Support AI. How can I help you today?' }
+        { role: 'ai', content: 'Hi! I am the Nexus Support. How can I help you today?' }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +61,7 @@ export default function SupportWidget() {
                         <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
                             <div className="flex items-center gap-2">
                                 <Bot size={20} className="text-blue-400" />
-                                <span className="font-semibold">Lumi Support AI</span>
+                                <span className="font-semibold">Nexus Support</span>
                             </div>
                             <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">
                                 <X size={20} />

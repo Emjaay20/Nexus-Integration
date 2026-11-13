@@ -120,13 +120,13 @@ pub struct PolicySet {
 }
 
 impl PolicySet {
-    /// Generates a default, enterprise-grade policy set tailored for Luminovo.
-    pub fn default_luminovo_policies() -> Self {
+    /// Generates a default, policy set used when no policies are loaded.
+    pub fn default_policies() -> Self {
         let rules = vec![
             PolicyRule {
                 id: "rule-admin-super".to_string(),
                 name: "Platform Admin Superuser".to_string(),
-                description: "Full access across platform for Team Core administrators".to_string(),
+                description: "Full access across platform for platform administrators".to_string(),
                 effect: RuleEffect::Allow,
                 allowed_roles: vec!["platform_admin".to_string(), "staff_engineer".to_string()],
                 allowed_actions: vec![
@@ -214,7 +214,11 @@ impl PolicyEngine {
         let policies = self.policy_set.load();
 
         // 1. Check for explicit DENY rules first
-        for rule in policies.rules.iter().filter(|r| r.effect == RuleEffect::Deny) {
+        for rule in policies
+            .rules
+            .iter()
+            .filter(|r| r.effect == RuleEffect::Deny)
+        {
             if self.rule_matches(rule, subject, action, resource, context) {
                 let latency_nanos = start.elapsed().as_nanos() as u64;
                 return EvaluationResult {
@@ -227,7 +231,11 @@ impl PolicyEngine {
         }
 
         // 2. Check for matching ALLOW rules
-        for rule in policies.rules.iter().filter(|r| r.effect == RuleEffect::Allow) {
+        for rule in policies
+            .rules
+            .iter()
+            .filter(|r| r.effect == RuleEffect::Allow)
+        {
             if self.rule_matches(rule, subject, action, resource, context) {
                 let latency_nanos = start.elapsed().as_nanos() as u64;
                 return EvaluationResult {
@@ -318,10 +326,10 @@ mod tests {
 
     #[test]
     fn test_admin_superuser_access() {
-        let engine = PolicyEngine::new(PolicySet::default_luminovo_policies());
+        let engine = PolicyEngine::new(PolicySet::default_policies());
         let admin = Subject {
             user_id: "usr-admin-1".to_string(),
-            tenant_id: "luminovo".to_string(),
+            tenant_id: "nexus-platform".to_string(),
             role: "platform_admin".to_string(),
             clearance: SensitivityLevel::RestrictedPrice,
             attributes: HashMap::new(),
@@ -329,7 +337,7 @@ mod tests {
         let resource = Resource {
             resource_id: "quote-99".to_string(),
             resource_type: "quotation".to_string(),
-            tenant_id: "siemens-oem".to_string(),
+            tenant_id: "globex-oem".to_string(),
             sensitivity: SensitivityLevel::RestrictedPrice,
             attributes: HashMap::new(),
         };
@@ -342,18 +350,18 @@ mod tests {
 
     #[test]
     fn test_tenant_isolation_enforcement() {
-        let engine = PolicyEngine::new(PolicySet::default_luminovo_policies());
+        let engine = PolicyEngine::new(PolicySet::default_policies());
         let engineer = Subject {
             user_id: "usr-eng-1".to_string(),
-            tenant_id: "oem-bosch".to_string(),
+            tenant_id: "acme-oem".to_string(),
             role: "design_engineer".to_string(),
             clearance: SensitivityLevel::Confidential,
             attributes: HashMap::new(),
         };
         let resource = Resource {
-            resource_id: "bom-continental-42".to_string(),
+            resource_id: "bom-initech-42".to_string(),
             resource_type: "bom".to_string(),
-            tenant_id: "oem-continental".to_string(), // Cross-tenant!
+            tenant_id: "initech-oem".to_string(), // Cross-tenant!
             sensitivity: SensitivityLevel::Confidential,
             attributes: HashMap::new(),
         };
@@ -365,10 +373,10 @@ mod tests {
 
     #[test]
     fn test_nda_enforcement() {
-        let engine = PolicyEngine::new(PolicySet::default_luminovo_policies());
+        let engine = PolicyEngine::new(PolicySet::default_policies());
         let procurement = Subject {
             user_id: "usr-proc-1".to_string(),
-            tenant_id: "ems-flex".to_string(),
+            tenant_id: "umbrella-ems".to_string(),
             role: "ems_procurement".to_string(),
             clearance: SensitivityLevel::RestrictedPrice,
             attributes: HashMap::new(),
@@ -376,12 +384,14 @@ mod tests {
         let resource = Resource {
             resource_id: "pricing-quote-10".to_string(),
             resource_type: "pricing".to_string(),
-            tenant_id: "oem-siemens".to_string(),
+            tenant_id: "globex-oem".to_string(),
             sensitivity: SensitivityLevel::RestrictedPrice,
             attributes: HashMap::new(),
         };
-        let mut ctx = Context::default();
-        ctx.nda_signed = false; // Missing NDA!
+        let ctx = Context {
+            nda_signed: false, // Missing NDA!
+            ..Default::default()
+        };
 
         let res = engine.evaluate(&procurement, &Action::Read, &resource, &ctx);
         assert_eq!(res.decision, Decision::Deny);
@@ -389,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_atomic_policy_hot_reload() {
-        let engine = PolicyEngine::new(PolicySet::default_luminovo_policies());
+        let engine = PolicyEngine::new(PolicySet::default_policies());
         let initial_version = engine.get_policies().version;
 
         let mut updated_policies = engine.get_policies();

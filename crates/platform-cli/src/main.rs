@@ -1,4 +1,4 @@
-//! Luminovo Team Core Developer CLI (`platform-cli`)
+//! Platform developer CLI (`platform-cli`)
 //!
 //! Empowers internal engineers and AI agents to test permissions, profile queries,
 //! parse BOMs, and interact with the platform engine.
@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "platform-cli")]
-#[command(about = "Luminovo Team Core Platform & Developer Experience CLI", long_about = None)]
+#[command(about = "Platform and developer-experience CLI", long_about = None)]
 #[command(version = "0.1.0")]
 struct Cli {
     #[arg(short, long, default_value = "http://localhost:8080")]
@@ -36,10 +36,10 @@ enum Commands {
         #[arg(long)]
         resource_type: String,
 
-        #[arg(long, default_value = "siemens-oem")]
+        #[arg(long, default_value = "globex-oem")]
         subject_tenant: String,
 
-        #[arg(long, default_value = "siemens-oem")]
+        #[arg(long, default_value = "globex-oem")]
         resource_tenant: String,
 
         #[arg(long, default_value = "confidential")]
@@ -61,7 +61,7 @@ enum Commands {
         file: PathBuf,
     },
 
-    /// Query LumiMatch AI for second-source alternate components
+    /// Look up second-source alternate components
     MatchAlternate {
         #[arg(short, long)]
         mpn: String,
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Commands::Health => {
-            println!("Connecting to Luminovo Platform Core at {}...", cli.endpoint);
+            println!("Connecting to Platform Core at {}...", cli.endpoint);
             let res = client
                 .get(format!("{}/health", cli.endpoint))
                 .send()
@@ -143,7 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .send()
                 .await?;
             let result: serde_json::Value = res.json().await?;
-            println!("\n--- Team Core SQL Profile Report ---");
+            println!("\n--- SQL Profile Report ---");
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
 
@@ -173,7 +173,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .send()
                 .await?;
             let result: serde_json::Value = res.json().await?;
-            println!("\n--- LumiMatch Second-Source Alternates ---");
+            println!("\n--- Second-Source Alternates ---");
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
     }

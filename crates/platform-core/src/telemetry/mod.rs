@@ -12,7 +12,8 @@ static PROMETHEUS_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();
 /// Initializes tracing and Prometheus metrics exporter.
 pub fn init_telemetry() -> Result<(), anyhow::Error> {
     // 1. Initialize Tracing Subscriber with JSON formatting for Cloud/K8s environments
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,platform_core=debug"));
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info,platform_core=debug"));
 
     let formatting_layer = tracing_subscriber::fmt::layer()
         .with_target(true)

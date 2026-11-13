@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1.4
-# High-Performance Multi-Stage Docker Build with cargo-chef dependency caching
-# Cuts compilation times in CI/CD from 15 minutes down to < 45 seconds.
+# Multi-stage build; cargo-chef caches the dependency layer between builds.
 
 # Stage 1: Cargo Chef Planner
 FROM rust:1.80-bullseye AS chef
@@ -31,7 +30,7 @@ COPY --from=builder /app/target/release/platform-cli /usr/local/bin/platform-cli
 
 ENV HOST=0.0.0.0 \
     PORT=8080 \
-    RUST_LOG=info,luminovo_platform_core=debug
+    RUST_LOG=info,nexus_platform_core=debug
 
 EXPOSE 8080
 

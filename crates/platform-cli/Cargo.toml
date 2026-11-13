@@ -1,5 +1,5 @@
 [package]
-name = "luminovo-platform-cli"
+name = "nexus-platform-cli"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

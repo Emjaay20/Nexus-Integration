@@ -28,8 +28,8 @@ export default function PlatformCoreStudio() {
   const [role, setRole] = useState("design_engineer");
   const [action, setAction] = useState("read");
   const [resourceType, setResourceType] = useState("bom");
-  const [subjectTenant, setSubjectTenant] = useState("bosch-oem");
-  const [resourceTenant, setResourceTenant] = useState("bosch-oem");
+  const [subjectTenant, setSubjectTenant] = useState("acme-oem");
+  const [resourceTenant, setResourceTenant] = useState("acme-oem");
   const [sensitivity, setSensitivity] = useState("confidential");
   const [ndaSigned, setNdaSigned] = useState(true);
   const [evalResult, setEvalResult] = useState<any>(null);
@@ -211,22 +211,22 @@ export default function PlatformCoreStudio() {
           <div>
             <div className="flex items-center gap-3">
               <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                TEAM CORE PLATFORM
+                PLATFORM CORE
               </span>
               <span className="text-xs text-slate-400 font-mono">Rust actix-web Monolith</span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white mt-2">
-              Luminovo Platform Core Studio
+              Platform Core Studio
             </h1>
             <p className="text-sm text-slate-400 mt-1">
-              High-performance authorization engine, LumiMatch AI copilot, and developer agent bridge.
+              High-performance authorization engine, sourcing assistant, and developer agent bridge.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg text-xs font-mono">
               <div className={`w-2.5 h-2.5 rounded-full ${backendStatus ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
-              <span>Daemon: {backendStatus ? "ONLINE (actix-web)" : "CONNECTING..."}</span>
+              <span>Daemon: {backendStatus ? "ONLINE (actix-web)" : "OFFLINE"}</span>
               {backendStatus && (
                 <span className="text-slate-500">| v{backendStatus.version}</span>
               )}
@@ -263,7 +263,7 @@ export default function PlatformCoreStudio() {
             }`}
           >
             <Sparkles className="w-4 h-4" />
-            LumiMatch AI Copilot
+            Sourcing Assistant
           </button>
           <button
             onClick={() => setActiveTab("agent")}
@@ -301,7 +301,7 @@ export default function PlatformCoreStudio() {
                   <ShieldCheck className="w-5 h-5 text-indigo-400" />
                   Policy Request Parameters
                 </h3>
-                <span className="text-xs font-mono text-slate-400">Lock-Free ArcSwap PDP</span>
+                <span className="text-xs font-mono text-slate-400">Policy decision point</span>
               </div>
 
               <div className="space-y-4 text-sm">
@@ -314,7 +314,7 @@ export default function PlatformCoreStudio() {
                   >
                     <option value="design_engineer">OEM Design Engineer</option>
                     <option value="ems_procurement">EMS Procurement Specialist</option>
-                    <option value="platform_admin">Team Core Platform Admin</option>
+                    <option value="platform_admin">Platform Admin</option>
                     <option value="auditor">External Compliance Auditor</option>
                   </select>
                 </div>
@@ -445,7 +445,7 @@ export default function PlatformCoreStudio() {
                         <span className="text-indigo-400">{evalResult.matched_rule_id || "None (Default Deny)"}</span>
                       </div>
                       <div>
-                        Latency: <span className="text-amber-400">{evalResult.latency_nanos} ns</span> (Zero-Copy)
+                        Latency: <span className="text-amber-400">{evalResult.latency_nanos} ns</span>
                       </div>
                       <div>
                         Zero-Trust Boundary:{" "}
@@ -463,14 +463,14 @@ export default function PlatformCoreStudio() {
               </div>
 
               <div className="text-xs text-slate-500 border-t border-slate-800 pt-3 mt-6 flex justify-between">
-                <span>Algorithm: In-Memory ArcSwap AST</span>
-                <span>Thread-Safety: Lock-free atomic read</span>
+                <span>Policy set held in memory</span>
+                <span>Hot reload via ArcSwap</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: LUMIMATCH AI COPILOT */}
+        {/* TAB 2: SOURCING ASSISTANT */}
         {activeTab === "ai" && (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
@@ -478,7 +478,7 @@ export default function PlatformCoreStudio() {
                 <div>
                   <h3 className="font-semibold text-white flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-indigo-400" />
-                    LumiMatch AI Component & Supply Chain Copilot
+                    Component Sourcing Assistant
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
                     Multi-source component normalization, second-source qualification, and supply chain vulnerability analysis.
@@ -612,7 +612,7 @@ export default function PlatformCoreStudio() {
                   <Terminal className="w-5 h-5 text-indigo-400" />
                   SQL Query Profiler & Linter
                 </h3>
-                <span className="text-xs font-mono text-slate-400">Team Core Platform Tool</span>
+                <span className="text-xs font-mono text-slate-400">Platform Tool</span>
               </div>
               <p className="text-xs text-slate-400">
                 AI coding agents and developers use this tool to detect multi-tenant leaks, missing LIMITs, and unindexed column joins.
@@ -693,7 +693,7 @@ export default function PlatformCoreStudio() {
                 </div>
               ) : (
                 <div className="text-center text-slate-500 text-sm mt-12">
-                  Submit a SQL query to profile against Team Core standards.
+                  Submit a SQL query to profile against platform standards.
                 </div>
               )}
             </div>

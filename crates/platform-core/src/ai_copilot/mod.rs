@@ -1,9 +1,8 @@
-//! LumiMatch AI & Supply Chain Sourcing Risk Engine
+//! Sourcing risk analysis and alternate-part lookup
 //!
-//! Replicates Luminovo's flagship electronics intelligence:
-//! - Multi-attribute semantic part matching (Pin-compatible second sources)
-//! - LLM-driven supply chain risk evaluation (Lead time bottlenecks, single-source exposure)
-//! - Hybrid execution: High-speed local heuristics + Live Gemini API integration with structured JSON.
+//! - Sourcing risk: a deterministic score from lead time, single-source and
+//!   lifecycle data, optionally refined by an LLM when an API key is set.
+//! - Alternate parts: lookup against a small built-in reference catalog.
 
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -45,7 +44,7 @@ pub struct SourcingRiskReport {
     pub lead_time_bottlenecks: Vec<LeadTimeBottleneck>,
     pub strategic_recommendations: Vec<String>,
     pub estimated_cost_reduction_opportunity_pct: f64,
-    pub analyzed_by: String, // "Gemini-2.5-Flash (Live)" or "LumiHeuristic Engine (Local)"
+    pub analyzed_by: String, // "Gemini-2.5-Flash (Live)" or "Rule-based heuristics (local)"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +62,7 @@ pub struct AlternatePart {
     pub package_footprint: String,
     pub is_pin_compatible: bool,
     pub availability_status: String,
-    pub cost_delta_pct: f64, // e.g. -15.0% = 15% cheaper
+    pub cost_delta_pct: f64,   // e.g. -15.0% = 15% cheaper
     pub match_confidence: f64, // 0.0 - 1.0
     pub rationale: String,
 }
@@ -88,7 +87,9 @@ impl Default for AiCopilotEngine {
 
 impl AiCopilotEngine {
     pub fn new() -> Self {
-        let api_key = env::var("GEMINI_API_KEY").ok().filter(|k| !k.trim().is_empty());
+        let api_key = env::var("GEMINI_API_KEY")
+            .ok()
+            .filter(|k| !k.trim().is_empty());
         Self {
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(15))
@@ -100,7 +101,12 @@ impl AiCopilotEngine {
 
     /// Evaluates supply chain risks across PCBA components using Gemini or local intelligence.
     pub async fn analyze_sourcing_risk(&self, req: SourcingRiskRequest) -> SourcingRiskReport {
-        let max_lead = req.components.iter().map(|c| c.lead_time_weeks).max().unwrap_or(0);
+        let max_lead = req
+            .components
+            .iter()
+            .map(|c| c.lead_time_weeks)
+            .max()
+            .unwrap_or(0);
         let single_source_count = req.components.iter().filter(|c| c.is_single_source).count();
         let obsolete_count = req
             .components
@@ -149,7 +155,10 @@ impl AiCopilotEngine {
 
         // If GEMINI_API_KEY is available, we augment with live LLM synthesis
         if let Some(ref key) = self.api_key {
-            if let Ok(llm_report) = self.call_gemini_risk_analysis(key, &req, risk_score, &risk_level).await {
+            if let Ok(llm_report) = self
+                .call_gemini_risk_analysis(key, &req, risk_score, &risk_level)
+                .await
+            {
                 return llm_report;
             }
         }
@@ -158,7 +167,7 @@ impl AiCopilotEngine {
         let mut recommendations = Vec::new();
         if single_source_count > 0 {
             recommendations.push(format!(
-                "Single-Source Exposure: {} active components lack approved second sources. Recommend running LumiMatch Alternate Finder.",
+                "Single-Source Exposure: {} active components lack approved second sources. Recommend running the alternate-part lookup.",
                 single_source_count
             ));
         }
@@ -186,12 +195,15 @@ impl AiCopilotEngine {
             lead_time_bottlenecks: bottlenecks,
             strategic_recommendations: recommendations,
             estimated_cost_reduction_opportunity_pct: 12.5,
-            analyzed_by: "LumiHeuristic Engine (Local High-Performance)".to_string(),
+            analyzed_by: "Rule-based heuristics (local)".to_string(),
         }
     }
 
     /// Finds pin-compatible second-source alternates for critical electronic components.
-    pub async fn match_alternate_parts(&self, req: AlternateMatchRequest) -> AlternateMatchResponse {
+    pub async fn match_alternate_parts(
+        &self,
+        req: AlternateMatchRequest,
+    ) -> AlternateMatchResponse {
         let norm = req.target_mpn.to_uppercase();
         let mut alternates = Vec::new();
 
@@ -215,7 +227,9 @@ impl AiCopilotEngine {
                 availability_status: "Active".to_string(),
                 cost_delta_pct: -31.5,
                 match_confidence: 0.88,
-                rationale: "Pin-compatible 32-bit MCU with hardware crypto accelerator and 512KB Flash.".to_string(),
+                rationale:
+                    "Pin-compatible 32-bit MCU with hardware crypto accelerator and 512KB Flash."
+                        .to_string(),
             });
         } else if norm.contains("LM1117") || norm.contains("AMS1117") {
             alternates.push(AlternatePart {
@@ -238,18 +252,6 @@ impl AiCopilotEngine {
                 match_confidence: 0.98,
                 rationale: "Cost-reduced 1A low-dropout positive voltage regulator in industry standard SOT-223.".to_string(),
             });
-        } else {
-            // General alternate pattern
-            alternates.push(AlternatePart {
-                alternate_mpn: format!("{}-ALT-01", req.target_mpn),
-                manufacturer: "Second-Source Semiconductor".to_string(),
-                package_footprint: "Standard SMD".to_string(),
-                is_pin_compatible: true,
-                availability_status: "Sample Available".to_string(),
-                cost_delta_pct: -15.0,
-                match_confidence: 0.85,
-                rationale: format!("Form-fit-function equivalent for {} matching electrical specifications.", req.target_mpn),
-            });
         }
 
         if let Some(limit) = req.max_results {
@@ -259,7 +261,7 @@ impl AiCopilotEngine {
         AlternateMatchResponse {
             query_mpn: req.target_mpn,
             alternates,
-            provider: "LumiMatch Multi-Source Resolver".to_string(),
+            provider: "Built-in reference catalog".to_string(),
         }
     }
 
@@ -276,7 +278,7 @@ impl AiCopilotEngine {
         );
 
         let prompt = format!(
-            r#"You are Luminovo's Lead Electronics Sourcing AI. Analyze this PCBA Bill of Materials for supply chain vulnerabilities:
+            r#"You are an electronics sourcing analyst. Analyze this PCBA Bill of Materials for supply chain vulnerabilities:
 Project: {}
 Target Production Batch: {} units
 Components:
@@ -314,21 +316,43 @@ Return a JSON object with:
 
         let parsed: serde_json::Value = serde_json::from_str(text_content)?;
 
-        let risk_score = parsed["overall_risk_score"].as_u64().unwrap_or(baseline_score as u64) as u32;
-        let risk_level = parsed["risk_level"].as_str().unwrap_or(baseline_level).to_string();
+        let risk_score = parsed["overall_risk_score"]
+            .as_u64()
+            .unwrap_or(baseline_score as u64) as u32;
+        let risk_level = parsed["risk_level"]
+            .as_str()
+            .unwrap_or(baseline_level)
+            .to_string();
         let recs: Vec<String> = parsed["strategic_recommendations"]
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
             .unwrap_or_default();
-        let cost_reduction = parsed["estimated_cost_reduction_opportunity_pct"].as_f64().unwrap_or(14.0);
+        let cost_reduction = parsed["estimated_cost_reduction_opportunity_pct"]
+            .as_f64()
+            .unwrap_or(14.0);
 
         Ok(SourcingRiskReport {
             project_name: req.project_name.clone(),
             overall_risk_score: risk_score,
             risk_level,
             single_source_count: req.components.iter().filter(|c| c.is_single_source).count(),
-            obsolete_or_nrnd_count: req.components.iter().filter(|c| c.lifecycle_status.contains("EOL") || c.lifecycle_status.contains("OBSOLETE")).count(),
-            max_lead_time_weeks: req.components.iter().map(|c| c.lead_time_weeks).max().unwrap_or(0),
+            obsolete_or_nrnd_count: req
+                .components
+                .iter()
+                .filter(|c| {
+                    c.lifecycle_status.contains("EOL") || c.lifecycle_status.contains("OBSOLETE")
+                })
+                .count(),
+            max_lead_time_weeks: req
+                .components
+                .iter()
+                .map(|c| c.lead_time_weeks)
+                .max()
+                .unwrap_or(0),
             lead_time_bottlenecks: Vec::new(),
             strategic_recommendations: recs,
             estimated_cost_reduction_opportunity_pct: cost_reduction,

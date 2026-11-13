@@ -8,7 +8,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Luminovo Team Core <platform@luminovo.ai>"]
+authors = ["Emjaay20"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]

@@ -1,6 +1,6 @@
 apiVersion: v2
-name: luminovo-platform-core
-description: Production Helm Chart for Luminovo Team Core Rust Platform Monolith
+name: nexus-platform-core
+description: Helm chart for the Platform Core Rust service
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
@@ -10,5 +10,4 @@ keywords:
   - supply-chain
   - platform-engineering
 maintainers:
-  - name: Team Core
-    email: platform@luminovo.ai
+  - name: Emjaay20

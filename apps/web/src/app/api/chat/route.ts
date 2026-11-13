@@ -90,8 +90,8 @@ export async function POST(req: NextRequest) {
 
         const ai = new GoogleGenAI({ apiKey });
         
-        const systemPrompt = `You are the Lumi Support AI (similar to Intercom FinAI). 
-You help users with the Lumi Enablement Hub. 
+        const systemPrompt = `You are the Nexus support assistant. 
+You help users with the Nexus Integration Hub. 
 Answer the user's question concisely based ONLY on the provided context. 
 If the context does not contain the answer, say you don't know and suggest they contact support.
 

@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum ComponentLifecycle {
     Active,
-    Nrnd,       // Not Recommended for New Designs
-    EndOfLife,  // EOL announced
-    Obsolete,   // Production ceased
+    Nrnd,      // Not Recommended for New Designs
+    EndOfLife, // EOL announced
+    Obsolete,  // Production ceased
     Unknown,
 }
 
@@ -92,7 +92,10 @@ impl BomEngine {
         // Detect header row or start directly
         let mut start_idx = 0;
         let first_lower = lines[0].to_lowercase();
-        if first_lower.contains("mpn") || first_lower.contains("part") || first_lower.contains("description") {
+        if first_lower.contains("mpn")
+            || first_lower.contains("part")
+            || first_lower.contains("description")
+        {
             start_idx = 1;
         }
 
@@ -137,10 +140,7 @@ impl BomEngine {
                 String::new()
             };
 
-            let quantity: u32 = cols
-                .get(3)
-                .and_then(|q| q.parse::<u32>().ok())
-                .unwrap_or(1);
+            let quantity: u32 = cols.get(3).and_then(|q| q.parse::<u32>().ok()).unwrap_or(1);
 
             let ref_des_raw = cols.get(4).copied().unwrap_or("");
             let reference_designators: Vec<String> = if !ref_des_raw.is_empty() {
@@ -160,7 +160,12 @@ impl BomEngine {
                 .or_else(|| Self::estimate_part_cost(&normalized_mpn));
 
             let lifecycle = Self::infer_lifecycle(&normalized_mpn, &description);
-            let is_high_risk = matches!(lifecycle, ComponentLifecycle::Obsolete | ComponentLifecycle::EndOfLife | ComponentLifecycle::Nrnd);
+            let is_high_risk = matches!(
+                lifecycle,
+                ComponentLifecycle::Obsolete
+                    | ComponentLifecycle::EndOfLife
+                    | ComponentLifecycle::Nrnd
+            );
 
             if is_high_risk {
                 high_risk_count += 1;
@@ -241,9 +246,15 @@ mod tests {
 
     #[test]
     fn test_normalize_mpn_suffixes() {
-        assert_eq!(BomEngine::normalize_mpn("STM32F401RET6-TR"), "STM32F401RET6");
+        assert_eq!(
+            BomEngine::normalize_mpn("STM32F401RET6-TR"),
+            "STM32F401RET6"
+        );
         assert_eq!(BomEngine::normalize_mpn("LM358DR/NOPB"), "LM358DR");
-        assert_eq!(BomEngine::normalize_mpn("  C0603C104K5RACTU+T  "), "C0603C104K5RACTU");
+        assert_eq!(
+            BomEngine::normalize_mpn("  C0603C104K5RACTU+T  "),
+            "C0603C104K5RACTU"
+        );
     }
 
     #[test]
