@@ -5,6 +5,9 @@ node_modules/
 .next/
 out/
 
+# rust
+target/
+
 # environment variables
 .env
 .env.local
@@ -17,8 +20,10 @@ out/
 
 # debug
 npm-debug.log*
+*.log
 
 # misc
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+.gemini/

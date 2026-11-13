@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --panel: #ffffff;
+  --panel-border: #e2e8f0;
+  --muted: #64748b;
+  --status-ok: #10b981;
+  --status-warn: #f59e0b;
+  --status-err: #ef4444;
+  --radius: 6px;
+}
+
+.dark {
+  --background: #090d16;
+  --foreground: #f8fafc;
+  --panel: #0e1422;
+  --panel-border: #1e293b;
+  --muted: #94a3b8;
+  --status-ok: #10b981;
+  --status-warn: #f59e0b;
+  --status-err: #ef4444;
+  --radius: 6px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Industrial Data Tables & Control Room Styling */
+.control-grid {
+  display: grid;
+  gap: 1px;
+  background-color: var(--panel-border);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

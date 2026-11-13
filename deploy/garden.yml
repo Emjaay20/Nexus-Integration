@@ -1,0 +1,27 @@
+kind: Project
+name: luminovo-platform
+environments:
+  - name: local
+  - name: staging
+---
+kind: Module
+name: platform-core
+type: container
+description: Luminovo Team Core Rust Monolith with live code sync
+build:
+  dependencies: []
+services:
+  - name: platform-core
+    ports:
+      - name: http
+        containerPort: 8080
+        servicePort: 8080
+    healthCheck:
+      httpGet:
+        path: /health
+        port: 8080
+    sync:
+      paths:
+        - sourcePath: crates/platform-core/src
+          targetPath: /app/crates/platform-core/src
+          mode: one-way-replica

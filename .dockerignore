@@ -1,0 +1,10 @@
+.git
+.github
+.claude
+.gemini
+.next
+apps
+target
+**/node_modules
+**/.env
+**/.DS_Store

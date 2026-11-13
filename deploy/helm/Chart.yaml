@@ -1,0 +1,14 @@
+apiVersion: v2
+name: luminovo-platform-core
+description: Production Helm Chart for Luminovo Team Core Rust Platform Monolith
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - rust
+  - actix-web
+  - supply-chain
+  - platform-engineering
+maintainers:
+  - name: Team Core
+    email: platform@luminovo.ai

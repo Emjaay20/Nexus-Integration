@@ -1,0 +1,21 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: platform-core-prod
+  namespace: platform-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: ./deploy/helm
+      sourceRef:
+        kind: GitRepository
+        name: luminovo-monorepo
+        namespace: flux-system
+      interval: 1m
+  values:
+    replicaCount: 5
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
