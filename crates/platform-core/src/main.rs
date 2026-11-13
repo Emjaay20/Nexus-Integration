@@ -81,6 +81,20 @@ async fn main() -> std::io::Result<()> {
                 "/api/v1/agent/profile-query",
                 web::post().to(api::profile_agent_query),
             )
+            // ML Risk Inference & Semantic Vector Search
+            .route(
+                "/api/v1/ml/predict-risk",
+                web::post().to(api::ml_predict_risk),
+            )
+            .route(
+                "/api/v1/ml/semantic-search",
+                web::post().to(api::semantic_part_search),
+            )
+            // Polyglot Rust <-> Go Distributor Enrichment Bridge
+            .route(
+                "/api/v1/bom/enrich",
+                web::post().to(api::polyglot_bom_enrich),
+            )
     })
     .bind(&bind_addr)?
     .run()

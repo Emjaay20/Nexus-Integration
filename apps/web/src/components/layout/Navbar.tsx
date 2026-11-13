@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutGrid, FileSpreadsheet, Activity, Terminal, LogOut, Sun, Moon, Menu, X, Cpu } from 'lucide-react';
+import { LayoutGrid, FileSpreadsheet, Activity, Terminal, LogOut, Sun, Moon, Menu, X, Cpu, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useState } from 'react';
@@ -19,9 +19,10 @@ export function Navbar() {
     if (pathname === '/login') return null;
 
     const navItems = [
-        { name: 'Platform Core (Rust)', href: '/platform-core', icon: Cpu },
+        { name: 'Platform Core (Rust + Go + ML)', href: '/platform-core', icon: Cpu },
         { name: 'BOM Importer', href: '/bom-importer', icon: FileSpreadsheet },
         { name: 'Integration Hub', href: '/integration-hub', icon: Activity },
+        { name: 'Architecture & ADRs', href: '/docs', icon: BookOpen },
         { name: 'Developer', href: '/developer/playground', icon: Terminal },
     ];
 

@@ -3,17 +3,32 @@
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertCircle, Github, Mail, ArrowRight, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import {
+    AlertCircle,
+    Github,
+    Mail,
+    ArrowRight,
+    Loader2,
+    Sparkles,
+    CheckCircle2,
+    Lock,
+    UserPlus,
+    Building2,
+} from 'lucide-react';
 
-type AuthTab = 'magic-link' | 'demo';
+type AuthTab = 'signin' | 'signup' | 'magic-link' | 'demo';
 
 export function LoginForm() {
+    const [activeTab, setActiveTab] = useState<AuthTab>('signin');
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
+    const [organization, setOrganization] = useState('Munich Robotics OEM');
+    const [role, setRole] = useState('design_engineer');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [demoLoading, setDemoLoading] = useState(false);
     const [magicLinkSent, setMagicLinkSent] = useState(false);
-    const [activeTab, setActiveTab] = useState<AuthTab>('magic-link');
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -27,6 +42,70 @@ export function LoginForm() {
 
     const handleGitHubLogin = () => {
         signIn('github', { callbackUrl: '/integration-hub' });
+    };
+
+    const handlePasswordSignIn = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            const res = await signIn('credentials', {
+                email,
+                password,
+                redirect: false,
+            });
+            if (res?.error) {
+                setError('Invalid email or password. Need an account? Switch to Create Account.');
+            } else {
+                router.push('/integration-hub');
+                router.refresh();
+            }
+        } catch {
+            setError('Sign-in failed. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            const regRes = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email,
+                    name,
+                    password,
+                    organization,
+                    role,
+                }),
+            });
+            const data = await regRes.json();
+            if (!regRes.ok) {
+                setError(data.error || 'Could not create account');
+                setLoading(false);
+                return;
+            }
+            const signRes = await signIn('credentials', {
+                email,
+                password,
+                redirect: false,
+            });
+            if (signRes?.error) {
+                setError('Account created, please sign in.');
+                setActiveTab('signin');
+            } else {
+                router.push('/integration-hub');
+                router.refresh();
+            }
+        } catch {
+            setError('Failed to register account. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleMagicLink = async (e: React.FormEvent) => {
@@ -43,7 +122,7 @@ export function LoginForm() {
             if (!res.ok) throw new Error('Failed');
             setMagicLinkSent(true);
         } catch {
-            setError('Failed to send magic link. Please try again.');
+            setError('Magic link requires SMTP configured. Use Email & Password or Create Account instead.');
         } finally {
             setLoading(false);
         }
@@ -71,7 +150,6 @@ export function LoginForm() {
         }
     };
 
-    // ── Magic link sent confirmation ──
     if (magicLinkSent) {
         return (
             <div className="text-center py-6">
@@ -81,16 +159,14 @@ export function LoginForm() {
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Check your inbox</h2>
                 <p className="text-sm text-slate-500 mb-1">We sent a sign-in link to</p>
                 <p className="text-sm font-semibold text-slate-800 mb-6 font-mono">{email}</p>
-                <div className="bg-slate-50 rounded-xl p-4 mb-6 text-left">
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                        Click the link in the email to sign in instantly. The link expires in <span className="font-semibold text-slate-700">10 minutes</span>. Check your spam folder if you don't see it.
-                    </p>
-                </div>
                 <button
-                    onClick={() => { setMagicLinkSent(false); setEmail(''); }}
+                    onClick={() => {
+                        setMagicLinkSent(false);
+                        setEmail('');
+                    }}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                 >
-                    ← Try a different email
+                    ← Back to Sign In
                 </button>
             </div>
         );
@@ -98,65 +174,226 @@ export function LoginForm() {
 
     return (
         <div>
-            {/* Error */}
             {(error || urlError) && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-6 text-sm">
+                <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-5 text-xs font-medium">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    {error || errorMessages[urlError!] || 'An error occurred'}
+                    <span>{error || errorMessages[urlError!] || 'Authentication error'}</span>
                 </div>
             )}
 
-            {/* ── GitHub OAuth ── */}
-            <button
-                onClick={handleGitHubLogin}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-all shadow-sm mb-8"
-            >
-                <Github className="w-5 h-5" />
-                Continue with GitHub
-            </button>
-
-            {/* ── Divider ── */}
-            <div className="relative mb-8">
-                <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200"></div>
-                </div>
-                <div className="relative flex justify-center text-xs">
-                    <span className="px-4 bg-white text-slate-400">or choose a method</span>
-                </div>
-            </div>
-
-            {/* ── Auth Method Tabs ── */}
-            <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-6">
+            {/* Auth Method Tabs */}
+            <div className="grid grid-cols-4 gap-1 bg-slate-100 rounded-xl p-1 mb-6">
                 <button
-                    onClick={() => { setActiveTab('magic-link'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'magic-link'
+                    type="button"
+                    onClick={() => {
+                        setActiveTab('signin');
+                        setError('');
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === 'signin'
                             ? 'bg-white text-slate-900 shadow-sm'
                             : 'text-slate-500 hover:text-slate-700'
-                        }`}
+                    }`}
                 >
-                    <Mail className="w-4 h-4" />
+                    <Lock className="w-3.5 h-3.5" />
+                    Sign In
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setActiveTab('signup');
+                        setError('');
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === 'signup'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Register
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setActiveTab('demo');
+                        setError('');
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === 'demo'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    Instant Demo
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setActiveTab('magic-link');
+                        setError('');
+                    }}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        activeTab === 'magic-link'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Mail className="w-3.5 h-3.5" />
                     Magic Link
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md leading-none">
-                        ★
-                    </span>
-                </button>
-                <button
-                    onClick={() => { setActiveTab('demo'); setError(''); }}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'demo'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    <Sparkles className="w-4 h-4" />
-                    Demo Account
                 </button>
             </div>
 
-            {/* ── Magic Link Tab ── */}
-            {activeTab === 'magic-link' && (
-                <form onSubmit={handleMagicLink} className="space-y-5">
+            {/* TAB 1: EMAIL & PASSWORD SIGN IN */}
+            {activeTab === 'signin' && (
+                <form onSubmit={handlePasswordSignIn} className="space-y-4">
                     <div>
-                        <label className="block text-[11px] font-semibold tracking-[0.15em] text-slate-400 uppercase mb-2">
+                        <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1.5">
+                            Work Email
+                        </label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="engineer@company.de"
+                            required
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1.5">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            required
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition text-sm"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition shadow-lg shadow-blue-200/50"
+                    >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Sign In to Workspace <ArrowRight className="w-4 h-4" /></>}
+                    </button>
+                    <div className="pt-2 text-center">
+                        <button
+                            type="button"
+                            onClick={handleDemoLogin}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                            Or sign in with one click using the pre-seeded Staff Engineer demo account →
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* TAB 2: MULTI-TENANT ACCOUNT REGISTRATION */}
+            {activeTab === 'signup' && (
+                <form onSubmit={handleRegister} className="space-y-3.5">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1">
+                                Full Name
+                            </label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Inga Lindqvist"
+                                required
+                                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:border-blue-600"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1">
+                                Work Email
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="inga@oem.de"
+                                required
+                                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:border-blue-600"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1">
+                                Organization (Tenant)
+                            </label>
+                            <div className="relative">
+                                <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={organization}
+                                    onChange={(e) => setOrganization(e.target.value)}
+                                    required
+                                    className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-xs focus:outline-none focus:border-blue-600"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1">
+                                ABAC Role
+                            </label>
+                            <select
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                                className="w-full px-2.5 py-2 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-xs focus:outline-none focus:border-blue-600"
+                            >
+                                <option value="design_engineer">OEM Design Engineer</option>
+                                <option value="ems_procurement">EMS Procurement Lead</option>
+                                <option value="platform_admin">Platform Staff Engineer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1">
+                            Password (min. 6 chars)
+                        </label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Create a strong password"
+                            minLength={6}
+                            required
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:border-blue-600"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition shadow-lg shadow-blue-200/50"
+                    >
+                        {loading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <>
+                                Provision Tenant & Sign In
+                                <ArrowRight className="w-4 h-4" />
+                            </>
+                        )}
+                    </button>
+                </form>
+            )}
+
+            {/* TAB 3: MAGIC LINK */}
+            {activeTab === 'magic-link' && (
+                <form onSubmit={handleMagicLink} className="space-y-4">
+                    <div>
+                        <label className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1.5">
                             Email Address
                         </label>
                         <input
@@ -165,71 +402,59 @@ export function LoginForm() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@company.com"
                             required
-                            className="w-full px-0 py-3 border-0 border-b-2 border-slate-200 bg-transparent text-slate-900 placeholder:text-slate-300 focus:outline-none focus:border-blue-500 transition-colors text-[15px]"
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:border-blue-600"
                         />
                     </div>
-
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-xl font-semibold text-sm tracking-wide uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200/50"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition"
                     >
-                        {loading ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                            <>
-                                <Mail className="w-4 h-4" />
-                                Send Magic Link
-                            </>
-                        )}
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Send Magic Link</>}
                     </button>
-
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                            <span className="font-semibold text-slate-700">No password needed.</span>{' '}
-                            We'll send a secure sign-in link to your email. Click it and you're in — fast, safe, and modern.
-                        </p>
-                    </div>
                 </form>
             )}
 
-            {/* ── Demo Tab ── */}
+            {/* TAB 4: DEMO */}
             {activeTab === 'demo' && (
-                <div className="space-y-5">
-                    <div className="bg-gradient-to-br from-blue-50 to-violet-50 border border-blue-100 rounded-xl p-5">
-                        <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                                <Sparkles className="w-4 h-4 text-blue-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-semibold text-slate-800 mb-1">Try the full experience</p>
-                                <p className="text-xs text-slate-600 leading-relaxed">
-                                    Sign in instantly with a pre-populated account. Explore integrations, BOM imports, analytics, and the API playground — all with realistic demo data.
-                                </p>
-                            </div>
-                        </div>
+                <div className="space-y-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+                        <p className="text-xs font-semibold text-slate-900 mb-1">
+                            Instant Staff Engineer Evaluation Session
+                        </p>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                            Signs in with a pre-seeded multi-tenant workspace (<span className="font-mono">demo@nexus.dev</span>) connected to the Rust Platform Core and Go Ingestion Engine.
+                        </p>
                     </div>
-
                     <button
+                        type="button"
                         onClick={handleDemoLogin}
                         disabled={demoLoading}
-                        className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-xl font-semibold text-sm tracking-wide uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200/50"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition shadow-lg shadow-blue-200/50"
                     >
-                        {demoLoading ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                            <>
-                                Access Dashboard
-                                <ArrowRight className="w-4 h-4" />
-                            </>
-                        )}
+                        {demoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Launch Demo Workspace <ArrowRight className="w-4 h-4" /></>}
                     </button>
-
-                    <p className="text-center text-xs text-slate-400">
-                        Credentials: <span className="font-mono text-slate-500">demo@nexus.dev</span> / <span className="font-mono text-slate-500">demo1234</span>
-                    </p>
                 </div>
             )}
+
+            {/* Divider + GitHub */}
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                    <span className="px-3 bg-white text-slate-400">or SSO</span>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                onClick={handleGitHubLogin}
+                className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-medium hover:bg-slate-800 transition"
+            >
+                <Github className="w-4 h-4" />
+                Continue with GitHub OAuth
+            </button>
         </div>
     );
 }

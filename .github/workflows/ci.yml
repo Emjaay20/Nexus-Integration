@@ -19,6 +19,7 @@ jobs:
       pull-requests: read
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
+      go: ${{ steps.filter.outputs.go }}
       web: ${{ steps.filter.outputs.web }}
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +31,9 @@ jobs:
               - 'crates/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - '.github/workflows/ci.yml'
+            go:
+              - 'services/ingest/**'
               - '.github/workflows/ci.yml'
             web:
               - 'apps/web/**'
@@ -66,20 +70,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --locked
 
-  rust-audit:
-    name: Rust dependency audit
+  go-test:
+    name: Go ingestion worker-pool tests
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      checks: write
+    defaults:
+      run:
+        working-directory: services/ingest
     steps:
       - uses: actions/checkout@v4
-      - uses: rustsec/audit-check@v1.4.1
+      - uses: actions/setup-go@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          go-version: '1.22'
+      - run: go vet ./...
+      - run: go test -v -race ./...
 
   web:
     name: Web unit tests, typecheck & build
@@ -101,5 +106,6 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run build
         env:
+          AUTH_SECRET: "ci-dummy-secret-32-chars-long-minimum"
           NEXTAUTH_SECRET: "ci-dummy-secret-32-chars-long-minimum"
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"

@@ -4,9 +4,13 @@ use crate::agent_bridge::{AgentBridge, QueryProfileRequest, RuleValidationReques
 use crate::ai_copilot::{AiCopilotEngine, AlternateMatchRequest, SourcingRiskRequest};
 use crate::authz::{Action, Context, PolicyEngine, PolicySet, Resource, Subject};
 use crate::bom_engine::BomEngine;
+use crate::ml_engine::{
+    MlComponentFeatures, MlPartRiskPrediction, MlRiskEngine, SemanticSearchMatch,
+};
 use crate::telemetry::render_metrics;
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::sync::Arc;
 
 pub struct AppState {
@@ -130,4 +134,160 @@ pub async fn validate_agent_rule(req: web::Json<RuleValidationRequest>) -> impl 
 pub async fn profile_agent_query(req: web::Json<QueryProfileRequest>) -> impl Responder {
     let res = AgentBridge::profile_sql_query(&req.sql_query);
     HttpResponse::Ok().json(res)
+}
+
+#[derive(Deserialize)]
+pub struct MlPredictRequest {
+    pub components: Vec<MlComponentFeatures>,
+}
+
+#[derive(Serialize)]
+pub struct MlPredictResponse {
+    pub predictions: Vec<MlPartRiskPrediction>,
+    pub model_version: &'static str,
+}
+
+pub async fn ml_predict_risk(req: web::Json<MlPredictRequest>) -> impl Responder {
+    let predictions: Vec<MlPartRiskPrediction> = req
+        .components
+        .iter()
+        .map(MlRiskEngine::predict_component_risk)
+        .collect();
+    metrics::counter!("ml_risk_predictions_total").increment(predictions.len() as u64);
+
+    HttpResponse::Ok().json(MlPredictResponse {
+        predictions,
+        model_version: "nexus-gbdt-risk-v2.1",
+    })
+}
+
+#[derive(Deserialize)]
+pub struct SemanticSearchRequest {
+    pub query: String,
+    pub top_k: Option<usize>,
+}
+
+#[derive(Serialize)]
+pub struct SemanticSearchResponse {
+    pub query: String,
+    pub dimensions: usize,
+    pub matches: Vec<SemanticSearchMatch>,
+}
+
+pub async fn semantic_part_search(req: web::Json<SemanticSearchRequest>) -> impl Responder {
+    let top_k = req.top_k.unwrap_or(4);
+    let matches = MlRiskEngine::semantic_search(&req.query, top_k);
+    metrics::counter!("semantic_vector_searches_total").increment(1);
+
+    HttpResponse::Ok().json(SemanticSearchResponse {
+        query: req.query.clone(),
+        dimensions: 32,
+        matches,
+    })
+}
+
+#[derive(Deserialize)]
+pub struct PolyglotEnrichRequest {
+    pub mpns: Vec<String>,
+    pub target_batch_size: Option<u32>,
+}
+
+pub async fn polyglot_bom_enrich(req: web::Json<PolyglotEnrichRequest>) -> impl Responder {
+    let go_url = env::var("GO_INGEST_URL").unwrap_or_else(|_| "http://127.0.0.1:8090".to_string());
+    let batch_size = req.target_batch_size.unwrap_or(500);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .unwrap_or_default();
+
+    let payload = serde_json::json!({
+        "mpns": req.mpns,
+        "target_batch_size": batch_size,
+    });
+
+    match client
+        .post(format!("{}/api/v1/ingest/enrich-batch", go_url))
+        .json(&payload)
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            if let Ok(mut body) = resp.json::<serde_json::Value>().await {
+                if let Some(results) = body.get_mut("results").and_then(|v| v.as_array_mut()) {
+                    for item in results.iter_mut() {
+                        let mpn = item["normalized_mpn"].as_str().unwrap_or("").to_string();
+                        let mfr = item["manufacturer"].as_str().unwrap_or("").to_string();
+                        let cat = item["category"].as_str().unwrap_or("").to_string();
+                        let pkg = item["package"].as_str().unwrap_or("").to_string();
+                        let desc = item["description"].as_str().unwrap_or("").to_string();
+                        let lead = item["max_lead_time_weeks"].as_u64().unwrap_or(6) as u32;
+                        let stock = item["total_stock"].as_u64().unwrap_or(0);
+                        let dist_cnt = item["distributor_count"].as_u64().unwrap_or(1) as u32;
+                        let lc = item["lifecycle_status"]
+                            .as_str()
+                            .unwrap_or("Active")
+                            .to_string();
+                        let price = item["best_unit_price_at_qty"].as_f64().unwrap_or(0.5);
+
+                        let pred = MlRiskEngine::predict_component_risk(&MlComponentFeatures {
+                            mpn,
+                            manufacturer: mfr,
+                            category: cat,
+                            package: pkg,
+                            description: desc,
+                            lead_time_weeks: lead,
+                            stock_qty: stock,
+                            required_qty: batch_size as u64,
+                            distributor_count: dist_cnt,
+                            lifecycle_status: lc,
+                            unit_price_usd: price,
+                        });
+                        item["ml_risk_prediction"] = serde_json::to_value(pred).unwrap_or_default();
+                    }
+                }
+                metrics::counter!("polyglot_ingest_batches_total").increment(1);
+                return HttpResponse::Ok().json(body);
+            }
+        }
+        _ => {}
+    }
+
+    // Fallback if Go ingest daemon is unreachable
+    let mut fallback_results = Vec::new();
+    for raw in &req.mpns {
+        let norm = BomEngine::normalize_mpn(raw);
+        let pred = MlRiskEngine::predict_component_risk(&MlComponentFeatures {
+            mpn: norm.clone(),
+            manufacturer: "Catalog Fallback".to_string(),
+            category: "Electronic Component".to_string(),
+            package: "Standard".to_string(),
+            description: format!("{} component", norm),
+            lead_time_weeks: 8,
+            stock_qty: 2500,
+            required_qty: batch_size as u64,
+            distributor_count: 2,
+            lifecycle_status: "Active".to_string(),
+            unit_price_usd: 0.75,
+        });
+        fallback_results.push(serde_json::json!({
+            "query_mpn": raw,
+            "normalized_mpn": norm,
+            "manufacturer": "Catalog Fallback",
+            "lifecycle_status": "Active",
+            "total_stock": 2500,
+            "distributor_count": 2,
+            "best_unit_price_at_qty": 0.75,
+            "best_distributor": "DigiKey",
+            "min_lead_time_weeks": 6,
+            "max_lead_time_weeks": 8,
+            "ml_risk_prediction": pred,
+        }));
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "target_batch_size": batch_size,
+        "total_parts_queried": req.mpns.len(),
+        "engine": "rust-local-fallback",
+        "results": fallback_results,
+    }))
 }

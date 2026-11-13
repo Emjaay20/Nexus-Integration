@@ -87,14 +87,49 @@ async function checkPusher(): Promise<ServiceCheck> {
     };
 }
 
+async function checkGoIngest(): Promise<ServiceCheck> {
+    const start = performance.now();
+    try {
+        const res = await fetch(`${process.env.GO_INGEST_URL || 'http://127.0.0.1:8090'}/health`, { cache: 'no-store' });
+        const elapsed = Math.round(performance.now() - start);
+        if (res.ok) {
+            return {
+                name: 'Distributor Ingestion Service (Go 1.22 Worker Pool)',
+                description: 'Concurrent DigiKey / Mouser / Catalog BOM enrichment & price-break solver',
+                status: 'operational',
+                latencyMs: elapsed,
+                icon: Activity,
+            };
+        }
+        return {
+            name: 'Distributor Ingestion Service (Go 1.22 Worker Pool)',
+            description: 'Concurrent DigiKey / Mouser / Catalog BOM enrichment & price-break solver',
+            status: 'degraded',
+            latencyMs: elapsed,
+            icon: Activity,
+            error: `HTTP ${res.status}`,
+        };
+    } catch {
+        return {
+            name: 'Distributor Ingestion Service (Go 1.22 Worker Pool)',
+            description: 'Concurrent DigiKey / Mouser / Catalog BOM enrichment & price-break solver',
+            status: 'offline',
+            latencyMs: Math.round(performance.now() - start),
+            icon: Activity,
+            error: 'Go ingestion daemon unreachable',
+        };
+    }
+}
+
 export default async function StatusPage() {
-    const [dbCheck, rustCheck, pusherCheck] = await Promise.all([
+    const [dbCheck, rustCheck, goCheck, pusherCheck] = await Promise.all([
         checkDatabase(),
         checkRustCore(),
+        checkGoIngest(),
         checkPusher(),
     ]);
 
-    const services = [dbCheck, rustCheck, pusherCheck];
+    const services = [dbCheck, rustCheck, goCheck, pusherCheck];
     const isAllOperational = services.every((s) => s.status === 'operational');
 
     return (
