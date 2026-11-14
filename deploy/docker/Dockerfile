@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.4
 # Multi-stage build for Rust Platform Core standalone container
 
-FROM rust:1.83-bookworm AS builder
+FROM rust:bookworm AS builder
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-RUN cargo build --release --bin platform-core --bin platform-cli
+RUN cargo build --release --locked --bin platform-core --bin platform-cli
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*

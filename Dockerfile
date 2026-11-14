@@ -9,11 +9,11 @@ COPY services/ingest/*.go ./
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /usr/local/bin/nexus-ingest .
 
 # 2. Build Rust Platform Core & CLI
-FROM rust:1.83-bookworm AS rust-builder
+FROM rust:bookworm AS rust-builder
 WORKDIR /usr/src/nexus
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-RUN cargo build --release --bin platform-core --bin platform-cli
+RUN cargo build --release --locked --bin platform-core --bin platform-cli
 
 # 3. Build Next.js 16 Web App
 FROM node:22-bookworm-slim AS web-builder
