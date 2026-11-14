@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ToastProvider } from "@/components/ui/Toaster";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import SupportWidget from "@/components/SupportWidget";
+import { Footer } from "@/components/layout/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nexus-Integration",
-  description: "Modern supply chain integration hub",
+  title: { default: "Nexus — Electronics Sourcing & Integration", template: "%s · Nexus" },
+  description: "Import your Bill of Materials, compare supplier offers, and understand sourcing risks in one connected workspace.",
 };
 
 export default function RootLayout({
@@ -37,7 +37,7 @@ export default function RootLayout({
             <ToastProvider>
               <Navbar />
               {children}
-              <SupportWidget />
+              <Footer />
             </ToastProvider>
           </ThemeProvider>
         </AuthProvider>

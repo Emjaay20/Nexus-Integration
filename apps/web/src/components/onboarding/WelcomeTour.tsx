@@ -22,7 +22,7 @@ const slides = [
     {
         icon: <FileSpreadsheet className="w-8 h-8 text-amber-500" />,
         title: 'Intelligent BOM Importer',
-        description: 'Upload CSV or Excel files and let AI auto-map your columns. Validate data quality before import with detailed error reports.',
+        description: 'Upload CSV or Excel files and automatically match your columns. Validate data quality before import with detailed error reports.',
         color: 'bg-amber-50 border-amber-200',
     },
     {

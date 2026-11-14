@@ -1,22 +1,18 @@
-import { FileSpreadsheet } from "lucide-react";
 import { ImporterWizard } from "@/components/bom-importer/ImporterWizard";
-import { ProductTour } from "@/components/bom-importer/ProductTour";
-
 export default function BOMImporterPage() {
-    return (
-        <div className="max-w-5xl mx-auto space-y-6">
-            <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <FileSpreadsheet className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">BOM Importer</h1>
-                    <p className="text-slate-500">Upload, map, and validate your Bill of Materials.</p>
-                </div>
-            </div>
-
-            <ImporterWizard />
-            <ProductTour />
-        </div>
-    );
+  return (
+    <main id="main-content" className="wrap">
+      <header className="pagehead">
+        <div className="eyebrow">WORKSPACE / IMPORT</div>
+        <h1>BOM Importer</h1>
+        <p>
+          A clean parts list starts here. Upload your file, map the columns, and
+          resolve issues before sourcing.
+        </p>
+      </header>
+      <div className="importer-content">
+        <ImporterWizard />
+      </div>
+    </main>
+  );
 }

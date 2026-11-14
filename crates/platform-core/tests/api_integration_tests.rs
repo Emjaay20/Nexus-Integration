@@ -198,3 +198,23 @@ async fn test_agent_profile_query_endpoint() {
     assert_eq!(resp["is_production_ready"], false);
     assert!(resp["detected_anti_patterns"].as_array().unwrap().len() >= 2);
 }
+
+#[actix_rt::test]
+async fn enrichment_returns_503_instead_of_fabricated_quotes_when_ingest_is_offline() {
+    // The reserved zero port is unreachable without depending on a developer's service ports.
+    std::env::set_var("GO_INGEST_URL", "http://127.0.0.1:0");
+    let app =
+        test::init_service(App::new().route("/enrich", web::post().to(api::polyglot_bom_enrich)))
+            .await;
+    let request = test::TestRequest::post()
+        .uri("/enrich")
+        .set_json(json!({"mpns":["UNKNOWN123"],"target_batch_size":10}))
+        .to_request();
+    let response = test::call_service(&app, request).await;
+    assert_eq!(
+        response.status(),
+        actix_web::http::StatusCode::SERVICE_UNAVAILABLE
+    );
+    let body: serde_json::Value = test::read_body_json(response).await;
+    assert_eq!(body["results"], json!([]));
+}

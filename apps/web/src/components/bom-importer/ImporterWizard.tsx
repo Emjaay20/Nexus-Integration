@@ -20,6 +20,7 @@ import { FileSpreadsheet, ArrowRight } from 'lucide-react';
 */
 
 export function ImporterWizard() {
+    const [uploadError, setUploadError] = useState<string | null>(null);
     const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
     const [file, setFile] = useState<File | null>(null);
 
@@ -83,6 +84,7 @@ export function ImporterWizard() {
     };
 
     const handleFileSelect = async (uploadedFile: File) => {
+        setUploadError(null);
         setFile(uploadedFile);
         setIsParsing(true);
         setStep(2); // Move to processing step immediately to show loading UI
@@ -97,7 +99,8 @@ export function ImporterWizard() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to parse file');
+                const body = await response.json();
+                throw new Error(body.error || 'Failed to parse file');
             }
 
             const result = await response.json();
@@ -109,14 +112,16 @@ export function ImporterWizard() {
         } catch (error) {
             console.error("Parsing failed", error);
             setIsParsing(false);
-            // Handle error state (TODO: add toast or alert)
+            setUploadError(error instanceof Error ? error.message : 'Unable to parse this file.');
+            setStep(1);
         }
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto p-6">
+        <div className="w-full max-w-5xl mx-auto">
+            {uploadError && <p className="note error" role="alert" style={{marginBottom:20}}>{uploadError}</p>}
             {/* Progress Indicators (Simple for now) */}
-            <div className="flex items-center justify-between mb-12 px-4 max-w-2xl mx-auto">
+            <div className="flex items-center justify-between mb-10 px-0 max-w-2xl mx-auto">
                 <StepIndicator number={1} label="Upload" active={step >= 1} current={step === 1} />
                 <Connector active={step >= 2} />
                 <StepIndicator number={2} label="Map Columns" active={step >= 2} current={step === 2} />
@@ -134,7 +139,7 @@ export function ImporterWizard() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
-                        className="flex flex-col items-center justify-center min-h-[400px]"
+                        className="flex flex-col items-center justify-center min-h-[320px]"
                     >
                         <div className="text-center mb-8">
                             <h2 className="text-3xl font-bold text-slate-900 mb-2">Import your Bill of Materials</h2>
@@ -144,6 +149,7 @@ export function ImporterWizard() {
                         </div>
                         <FileUpload onFileSelect={handleFileSelect} />
 
+                        <button className="btn btn-secondary" style={{marginTop:16}} onClick={async () => { try { const r=await fetch('/sample-bom.csv'); if(!r.ok) throw new Error('Sample file unavailable'); const blob=await r.blob(); await handleFileSelect(new File([blob], 'sample-bom.csv', {type:'text/csv'})); } catch {setUploadError('Could not load the sample. Please upload a file.');} }}>Use sample BOM</button>
                         {/* Quick Template Download */}
                         <div className="mt-12 flex gap-4 text-sm text-slate-400">
                             <a

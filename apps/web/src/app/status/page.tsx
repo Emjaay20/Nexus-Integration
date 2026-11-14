@@ -1,226 +1,157 @@
-import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle, Database, Cpu, Wifi, Activity } from 'lucide-react';
-import { db } from '@/lib/db';
-
-export const dynamic = 'force-dynamic';
-
-interface ServiceCheck {
-    name: string;
-    description: string;
-    status: 'operational' | 'degraded' | 'offline';
-    latencyMs: number;
-    icon: typeof Activity;
-    error?: string;
-}
-
-async function checkDatabase(): Promise<ServiceCheck> {
-    const start = performance.now();
-    try {
-        await db.query('SELECT 1');
-        const elapsed = Math.round(performance.now() - start);
-        return {
-            name: 'Neon PostgreSQL Database',
-            description: 'Core metadata, user accounts & audit activity logs',
-            status: 'operational',
-            latencyMs: elapsed,
-            icon: Database,
-        };
-    } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        return {
-            name: 'Neon PostgreSQL Database',
-            description: 'Core metadata, user accounts & audit activity logs',
-            status: 'offline',
-            latencyMs: Math.round(performance.now() - start),
-            icon: Database,
-            error: errorMsg,
-        };
-    }
-}
-
-async function checkRustCore(): Promise<ServiceCheck> {
-    const start = performance.now();
-    try {
-        const res = await fetch(`${process.env.RUST_BACKEND_URL || 'http://127.0.0.1:8088'}/health`, { cache: 'no-store' });
-        const elapsed = Math.round(performance.now() - start);
-        if (res.ok) {
-            return {
-                name: 'Platform Core (Rust, actix-web)',
-                description: 'Permissions engine, BOM parser and Prometheus metrics',
-                status: 'operational',
-                latencyMs: elapsed,
-                icon: Cpu,
-            };
-        }
-        return {
-            name: 'Platform Core (Rust, actix-web)',
-            description: 'Permissions engine, BOM parser and Prometheus metrics',
-            status: 'degraded',
-            latencyMs: elapsed,
-            icon: Cpu,
-            error: `HTTP ${res.status}`,
-        };
-    } catch (err: unknown) {
-        return {
-            name: 'Platform Core (Rust, actix-web)',
-            description: 'Permissions engine, BOM parser and Prometheus metrics',
-            status: 'offline',
-            latencyMs: Math.round(performance.now() - start),
-            icon: Cpu,
-            error: 'Platform Core is unreachable',
-        };
-    }
-}
-
-async function checkPusher(): Promise<ServiceCheck> {
-    const start = performance.now();
-    const hasKeys = !!process.env.PUSHER_APP_ID && !!process.env.PUSHER_SECRET;
-    const elapsed = Math.round(performance.now() - start);
-
+import Link from "next/link";
+import { db } from "@/lib/db";
+export const dynamic = "force-dynamic";
+async function probe(url: string) {
+  const start = performance.now();
+  try {
+    const r = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(3000),
+    });
     return {
-        name: 'Pusher WebSocket Stream',
-        description: 'Private user real-time sync event delivery',
-        status: hasKeys ? 'operational' : 'degraded',
-        latencyMs: elapsed,
-        icon: Wifi,
-        error: hasKeys ? undefined : 'Pusher credentials missing in environment',
+      online: r.ok,
+      ms: Math.round(performance.now() - start),
+      data: await r.json(),
     };
+  } catch {
+    return {
+      online: false,
+      ms: Math.round(performance.now() - start),
+      data: null,
+    };
+  }
 }
-
-async function checkGoIngest(): Promise<ServiceCheck> {
-    const start = performance.now();
-    try {
-        const res = await fetch(`${process.env.GO_INGEST_URL || 'http://127.0.0.1:8090'}/health`, { cache: 'no-store' });
-        const elapsed = Math.round(performance.now() - start);
-        if (res.ok) {
-            return {
-                name: 'Distributor Ingestion Service (Go 1.22 Worker Pool)',
-                description: 'Concurrent DigiKey / Mouser / Catalog BOM enrichment & price-break solver',
-                status: 'operational',
-                latencyMs: elapsed,
-                icon: Activity,
-            };
-        }
-        return {
-            name: 'Distributor Ingestion Service (Go 1.22 Worker Pool)',
-            description: 'Concurrent DigiKey / Mouser / Catalog BOM enrichment & price-break solver',
-            status: 'degraded',
-            latencyMs: elapsed,
-            icon: Activity,
-            error: `HTTP ${res.status}`,
-        };
-    } catch {
-        return {
-            name: 'Distributor Ingestion Service (Go 1.22 Worker Pool)',
-            description: 'Concurrent DigiKey / Mouser / Catalog BOM enrichment & price-break solver',
-            status: 'offline',
-            latencyMs: Math.round(performance.now() - start),
-            icon: Activity,
-            error: 'Go ingestion daemon unreachable',
-        };
-    }
-}
-
-export default async function StatusPage() {
-    const [dbCheck, rustCheck, goCheck, pusherCheck] = await Promise.all([
-        checkDatabase(),
-        checkRustCore(),
-        checkGoIngest(),
-        checkPusher(),
-    ]);
-
-    const services = [dbCheck, rustCheck, goCheck, pusherCheck];
-    const isAllOperational = services.every((s) => s.status === 'operational');
-
-    return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
-            {/* Header */}
-            <header className="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-50">
-                <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <Link
-                        href="/"
-                        className="flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-white transition"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to Portal
-                    </Link>
-                    <span className="text-xs font-mono text-slate-500">Live Health Check</span>
-                </div>
-            </header>
-
-            <main className="max-w-4xl mx-auto px-6 py-12 space-y-8">
-                {/* Overall Status Banner */}
-                <div className="border border-slate-800 bg-slate-900 rounded-lg p-6 flex items-center justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            {isAllOperational ? (
-                                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                            ) : (
-                                <AlertTriangle className="w-5 h-5 text-amber-400" />
-                            )}
-                            <h1 className="text-lg font-bold text-white">
-                                {isAllOperational ? 'All Monitored Services Operational' : 'Partial Service Degradation'}
-                            </h1>
-                        </div>
-                        <p className="text-xs text-slate-400">
-                            Latencies are measured live via active round-trip queries and health endpoints.
-                        </p>
-                    </div>
-                    <span className="text-xs font-mono text-slate-500">
-                        {new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC
-                    </span>
-                </div>
-
-                {/* Services Table */}
-                <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900">
-                    <div className="px-5 py-3 border-b border-slate-800 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Component Health & Live Latencies
-                    </div>
-                    <div className="divide-y divide-slate-800">
-                        {services.map((service, idx) => (
-                            <div key={idx} className="p-5 flex items-center justify-between">
-                                <div className="flex items-center gap-3.5">
-                                    <div className="p-2 rounded bg-slate-950 border border-slate-800 text-slate-300">
-                                        <service.icon className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-semibold text-white">{service.name}</div>
-                                        <div className="text-xs text-slate-400 mt-0.5">{service.description}</div>
-                                        {service.error && (
-                                            <div className="text-[11px] font-mono text-rose-400 mt-1">
-                                                Note: {service.error}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="text-right space-y-1">
-                                    <div className="flex items-center gap-2 justify-end">
-                                        <span
-                                            className={`inline-block w-2 h-2 rounded-full ${
-                                                service.status === 'operational'
-                                                    ? 'bg-emerald-400'
-                                                    : service.status === 'degraded'
-                                                    ? 'bg-amber-400'
-                                                    : 'bg-rose-500'
-                                            }`}
-                                        />
-                                        <span className="text-xs font-mono font-medium capitalize text-slate-200">
-                                            {service.status}
-                                        </span>
-                                    </div>
-                                    <div className="text-xs font-mono text-slate-500">
-                                        {service.latencyMs}ms RTT
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="text-xs font-mono text-slate-500 text-center">
-                    Synthetic uptime bars removed in favor of real-time verified RTT measurements.
-                </div>
-            </main>
+export default async function Status() {
+  const [rust, go, database] = await Promise.all([
+    probe(`${process.env.RUST_BACKEND_URL || "http://127.0.0.1:8088"}/health`),
+    probe(`${process.env.GO_INGEST_URL || "http://127.0.0.1:8090"}/health`),
+    (async () => {
+      const start = performance.now();
+      try {
+        await db.query("SELECT 1");
+        return { online: true, ms: Math.round(performance.now() - start) };
+      } catch {
+        return { online: false, ms: Math.round(performance.now() - start) };
+      }
+    })(),
+  ]);
+  const services = [
+    {
+      name: "Web application",
+      detail: "Next.js workspace and API",
+      online: true,
+      ms: null,
+    },
+    {
+      name: "Platform core",
+      detail: "Rust parsing, policy evaluator, and sourcing scores",
+      ...rust,
+    },
+    {
+      name: "Distributor ingestion",
+      detail: "Go worker pool and supplier connections",
+      ...go,
+    },
+    {
+      name: "Database",
+      detail: "Accounts, BOM imports, and activity records",
+      ...database,
+    },
+  ];
+  return (
+    <main id="main-content" className="wrap">
+      <header className="pagehead">
+        <div className="eyebrow">PLATFORM / STATUS</div>
+        <h1>System status</h1>
+        <p>
+          Service reachability and supplier configuration, checked when you load
+          this page.
+        </p>
+      </header>
+      <section className="section">
+        <div className="section-head">
+          <h2>
+            {services.every((s) => s.online)
+              ? "All services operational."
+              : "Some services need attention."}
+          </h2>
+          <Link className="btn btn-secondary btn-sm" href="/status">
+            Refresh status
+          </Link>
         </div>
-    );
+        {services.map((s) => (
+          <div className="int-row" key={s.name}>
+            <div className="int-icon">{s.name[0]}</div>
+            <div>
+              <h3>{s.name}</h3>
+              <p>{s.detail}</p>
+            </div>
+            <div className="int-meta">
+              <span className="status-dot">
+                <span className={`dot ${s.online ? "dot-green" : "dot-red"}`} />
+                {s.online ? "Operational" : "Unavailable"}
+              </span>
+              {s.ms !== null && <span className="mono sub">{s.ms} ms</span>}
+            </div>
+          </div>
+        ))}
+        <div className="data-caption">
+          <span>
+            Checked {new Date().toISOString().replace("T", " ").slice(0, 19)}{" "}
+            UTC
+          </span>
+          <span>
+            Reachability checks are not historical uptime measurements.
+          </span>
+        </div>
+      </section>
+      <section className="section" style={{ paddingTop: 0 }}>
+        <div className="section-head">
+          <div>
+            <h2>Supplier connections</h2>
+            <p>
+              Configured credentials allow lookups; successful authentication is
+              checked during an actual enrichment.
+            </p>
+          </div>
+          <Link className="textlink" href="/docs#data">
+            Connection setup ↗
+          </Link>
+        </div>
+        {[
+          ["DigiKey", "digikey_v4"],
+          ["Mouser", "mouser_v1"],
+        ].map(([name, key]) => (
+          <div className="int-row" key={key}>
+            <div className="int-icon">{name.slice(0, 2)}</div>
+            <div>
+              <h3>{name}</h3>
+              <p>
+                {!go.online
+                  ? "Ingestion service unavailable."
+                  : go.data?.live_connectors?.[key]
+                    ? "Credentials configured. Run an enrichment to verify access."
+                    : "Credentials not configured. Reference catalog available for sample parts."}
+              </p>
+            </div>
+            <span className="status-dot">
+              <span
+                className={`dot ${go.data?.live_connectors?.[key] ? "dot-green" : "dot-amber"}`}
+              />
+              {!go.online
+                ? "Unknown"
+                : go.data?.live_connectors?.[key]
+                  ? "Configured"
+                  : "Reference only"}
+            </span>
+          </div>
+        ))}
+        <div className="note" style={{ marginTop: 24 }}>
+          Farnell is included only in the illustrative reference catalog. Risk
+          scores are heuristic.{" "}
+          <Link href="/docs#risk">Read the methodology.</Link>
+        </div>
+      </section>
+    </main>
+  );
 }

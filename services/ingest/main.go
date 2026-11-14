@@ -39,28 +39,30 @@ type DistributorOffer struct {
 	PriceBreaks     []PriceBreak `json:"price_breaks"`
 	DatasheetUrl    string       `json:"datasheet_url,omitempty"`
 	Source          string       `json:"source"` // "digikey_api", "mouser_api", "nexar_api", "catalog_verified"
-	FetchedAt       string       `json:"fetched_at"`
+	FetchedAt       string       `json:"fetched_at,omitempty"`
 }
 
 // PartEnrichmentResult aggregates multi-distributor offers, best pricing, and risk signals for an MPN.
 type PartEnrichmentResult struct {
-	QueryMpn            string             `json:"query_mpn"`
-	NormalizedMpn       string             `json:"normalized_mpn"`
-	Manufacturer        string             `json:"manufacturer"`
-	Category            string             `json:"category"`
-	Description         string             `json:"description"`
-	Package             string             `json:"package"`
-	LifecycleStatus     string             `json:"lifecycle_status"`
-	TotalStock          int                `json:"total_stock"`
-	DistributorCount    int                `json:"distributor_count"`
-	BestUnitPriceAtQty  float64            `json:"best_unit_price_at_qty"`
-	BestDistributor     string             `json:"best_distributor"`
-	MinLeadTimeWeeks    int                `json:"min_lead_time_weeks"`
-	MaxLeadTimeWeeks    int                `json:"max_lead_time_weeks"`
-	IsSingleSource      bool               `json:"is_single_source"`
-	Offers              []DistributorOffer `json:"offers"`
-	ParametricSpecs     map[string]string  `json:"parametric_specs"`
-	LatencyMicros       int64              `json:"latency_micros"`
+	DataSource         string             `json:"data_source"`
+	Warnings           []string           `json:"warnings"`
+	QueryMpn           string             `json:"query_mpn"`
+	NormalizedMpn      string             `json:"normalized_mpn"`
+	Manufacturer       string             `json:"manufacturer"`
+	Category           string             `json:"category"`
+	Description        string             `json:"description"`
+	Package            string             `json:"package"`
+	LifecycleStatus    string             `json:"lifecycle_status"`
+	TotalStock         int                `json:"total_stock"`
+	DistributorCount   int                `json:"distributor_count"`
+	BestUnitPriceAtQty float64            `json:"best_unit_price_at_qty"`
+	BestDistributor    string             `json:"best_distributor"`
+	MinLeadTimeWeeks   int                `json:"min_lead_time_weeks"`
+	MaxLeadTimeWeeks   int                `json:"max_lead_time_weeks"`
+	IsSingleSource     bool               `json:"is_single_source"`
+	Offers             []DistributorOffer `json:"offers"`
+	ParametricSpecs    map[string]string  `json:"parametric_specs"`
+	LatencyMicros      int64              `json:"latency_micros"`
 }
 
 type EnrichBatchRequest struct {
@@ -89,19 +91,19 @@ type CatalogPart struct {
 }
 
 type IngestServer struct {
-	httpClient       *http.Client
-	catalog          map[string]CatalogPart
-	cache            sync.Map
-	requestsTotal    atomic.Uint64
-	partsEnriched    atomic.Uint64
-	digikeyCalls     atomic.Uint64
-	mouserCalls      atomic.Uint64
-	nexarCalls       atomic.Uint64
-	digikeyClientID  string
-	digikeySecret    string
-	mouserApiKey     string
-	nexarClientID    string
-	nexarSecret      string
+	httpClient      *http.Client
+	catalog         map[string]CatalogPart
+	cache           sync.Map
+	requestsTotal   atomic.Uint64
+	partsEnriched   atomic.Uint64
+	digikeyCalls    atomic.Uint64
+	mouserCalls     atomic.Uint64
+	nexarCalls      atomic.Uint64
+	digikeyClientID string
+	digikeySecret   string
+	mouserApiKey    string
+	nexarClientID   string
+	nexarSecret     string
 }
 
 func NewIngestServer() *IngestServer {
@@ -138,10 +140,12 @@ func unitPriceForQuantity(breaks []PriceBreak, qty int) float64 {
 	if qty <= 0 {
 		qty = 1
 	}
-	best := breaks[0].UnitPrice
+	best := 0.0
+	bestTier := 0
 	for _, b := range breaks {
-		if qty >= b.Qty {
+		if qty >= b.Qty && b.Qty > 0 && b.Qty >= bestTier && b.UnitPrice > 0 {
 			best = b.UnitPrice
+			bestTier = b.Qty
 		}
 	}
 	return best
@@ -155,20 +159,33 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 		targetQty = 100
 	}
 
-	nowStr := time.Now().UTC().Format(time.RFC3339)
 	var liveOffers []DistributorOffer
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	warnings := []string{}
+	if s.mouserApiKey == "" {
+		warnings = append(warnings, "Mouser credentials not configured")
+	}
+	if s.digikeyClientID == "" || s.digikeySecret == "" {
+		warnings = append(warnings, "DigiKey credentials not configured")
+	}
 
 	// 1. Concurrent live distributor queries when API keys are configured
 	if s.mouserApiKey != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if offers, err := s.queryMouserLive(ctx, norm); err == nil && len(offers) > 0 {
-				mu.Lock()
-				liveOffers = append(liveOffers, offers...)
-				mu.Unlock()
+			offers, err := s.queryMouserLive(ctx, norm)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				warnings = append(warnings, "Mouser lookup failed; live data unavailable")
+			} else {
+				for _, offer := range offers {
+					if NormalizeMpn(offer.Mpn) == norm {
+						liveOffers = append(liveOffers, offer)
+					}
+				}
 			}
 		}()
 	}
@@ -177,10 +194,17 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if offers, err := s.queryDigiKeyLive(ctx, norm); err == nil && len(offers) > 0 {
-				mu.Lock()
-				liveOffers = append(liveOffers, offers...)
-				mu.Unlock()
+			offers, err := s.queryDigiKeyLive(ctx, norm, targetQty)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				warnings = append(warnings, "DigiKey lookup failed; live data unavailable")
+			} else {
+				for _, offer := range offers {
+					if NormalizeMpn(offer.Mpn) == norm {
+						liveOffers = append(liveOffers, offer)
+					}
+				}
 			}
 		}()
 	}
@@ -193,11 +217,27 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 	if len(offers) == 0 {
 		for _, o := range catPart.Offers {
 			oCopy := o
-			oCopy.FetchedAt = nowStr
+			oCopy.FetchedAt = ""
+			oCopy.Source = "reference_catalog"
 			offers = append(offers, oCopy)
 		}
 	}
 
+	dataSource := "live"
+	if len(liveOffers) == 0 {
+		dataSource = "reference"
+		warnings = append(warnings, "Reference catalog only. Stock and prices are illustrative, not current supplier quotes.")
+	}
+	if len(offers) == 0 {
+		dataSource = "unavailable"
+		warnings = append(warnings, "No offers found for this part")
+	}
+	if len(liveOffers) > 0 {
+		catPart.Manufacturer = liveOffers[0].Manufacturer
+		catPart.Description = liveOffers[0].Description
+		catPart.Package = liveOffers[0].Package
+		catPart.LifecycleStatus = liveOffers[0].LifecycleStatus
+	}
 	totalStock := 0
 	bestPrice := math.MaxFloat64
 	bestDist := "None"
@@ -207,7 +247,7 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 	for _, o := range offers {
 		totalStock += o.StockQty
 		p := unitPriceForQuantity(o.PriceBreaks, targetQty)
-		if p > 0 && p < bestPrice {
+		if targetQty >= o.Moq && p > 0 && p < bestPrice {
 			bestPrice = p
 			bestDist = o.Distributor
 		}
@@ -225,9 +265,15 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 		minLead = 0
 	}
 
-	isSingleSource := len(offers) <= 1 || !found && len(liveOffers) <= 1
+	distributors := map[string]bool{}
+	for _, offer := range offers {
+		distributors[offer.Distributor] = true
+	}
+	isSingleSource := len(distributors) <= 1 || !found && len(liveOffers) <= 1
 
 	return PartEnrichmentResult{
+		DataSource:         dataSource,
+		Warnings:           warnings,
 		QueryMpn:           rawMpn,
 		NormalizedMpn:      norm,
 		Manufacturer:       catPart.Manufacturer,
@@ -236,7 +282,7 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 		Package:            catPart.Package,
 		LifecycleStatus:    catPart.LifecycleStatus,
 		TotalStock:         totalStock,
-		DistributorCount:   len(offers),
+		DistributorCount:   len(distributors),
 		BestUnitPriceAtQty: math.Round(bestPrice*10000) / 10000,
 		BestDistributor:    bestDist,
 		MinLeadTimeWeeks:   minLead,
@@ -253,7 +299,7 @@ func (s *IngestServer) queryMouserLive(ctx context.Context, mpn string) ([]Distr
 	endpoint := fmt.Sprintf("https://api.mouser.com/api/v1/search/partnumber?apiKey=%s", url.QueryEscape(s.mouserApiKey))
 	payload := map[string]any{
 		"SearchByPartRequest": map[string]any{
-			"mouserPartNumber": mpn,
+			"mouserPartNumber":  mpn,
 			"partSearchOptions": "Exact",
 		},
 	}
@@ -301,14 +347,14 @@ func (s *IngestServer) queryMouserLive(ctx context.Context, mpn string) ([]Distr
 		var breaks []PriceBreak
 		for _, pb := range p.PriceBreaks {
 			var priceVal float64
-			cleanPrice := strings.TrimLeft(pb.Price, "$€£ ")
+			cleanPrice := strings.ReplaceAll(strings.TrimLeft(pb.Price, "$€£ "), ",", "")
 			fmt.Sscanf(cleanPrice, "%f", &priceVal)
 			if priceVal > 0 {
 				breaks = append(breaks, PriceBreak{Qty: pb.Quantity, UnitPrice: priceVal})
 			}
 		}
 		var stock int
-		fmt.Sscanf(p.AvailabilityInStock, "%d", &stock)
+		fmt.Sscanf(strings.ReplaceAll(p.AvailabilityInStock, ",", ""), "%d", &stock)
 		lifecycle := "Active"
 		if strings.Contains(strings.ToUpper(p.LifecycleStatus), "OBSOLETE") {
 			lifecycle = "Obsolete"
@@ -325,7 +371,7 @@ func (s *IngestServer) queryMouserLive(ctx context.Context, mpn string) ([]Distr
 			LifecycleStatus: lifecycle,
 			StockQty:        stock,
 			Moq:             1,
-			LeadTimeWeeks:   6,
+			LeadTimeWeeks:   0,
 			PriceBreaks:     breaks,
 			DatasheetUrl:    p.DataSheetUrl,
 			Source:          "mouser_api_live",
@@ -335,7 +381,7 @@ func (s *IngestServer) queryMouserLive(ctx context.Context, mpn string) ([]Distr
 	return out, nil
 }
 
-func (s *IngestServer) queryDigiKeyLive(ctx context.Context, mpn string) ([]DistributorOffer, error) {
+func (s *IngestServer) queryDigiKeyLive(ctx context.Context, mpn string, targetQty int) ([]DistributorOffer, error) {
 	s.digikeyCalls.Add(1)
 	// OAuth2 client_credentials token exchange against DigiKey Product Information v4
 	form := url.Values{}
@@ -370,7 +416,7 @@ func (s *IngestServer) queryDigiKeyLive(ctx context.Context, mpn string) ([]Dist
 	}
 	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
 	req.Header.Set("X-DIGIKEY-Client-Id", s.digikeyClientID)
-	req.Header.Set("X-DIGIKEY-Locale-Site", "DE")
+	req.Header.Set("X-DIGIKEY-Locale-Site", "US")
 	req.Header.Set("X-DIGIKEY-Locale-Language", "en")
 	req.Header.Set("X-DIGIKEY-Locale-Currency", "USD")
 
@@ -395,125 +441,50 @@ func (s *IngestServer) queryDigiKeyLive(ctx context.Context, mpn string) ([]Dist
 			ProductStatus struct {
 				Status string `json:"Status"`
 			} `json:"ProductStatus"`
-			StandardPricing []struct {
-				BreakQuantity int     `json:"BreakQuantity"`
-				UnitPrice     float64 `json:"UnitPrice"`
-			} `json:"StandardPricing"`
+			ProductVariations []struct {
+				DigiKeyProductNumber            string `json:"DigiKeyProductNumber"`
+				QuantityAvailableforPackageType int    `json:"QuantityAvailableforPackageType"`
+				MinimumOrderQuantity            int    `json:"MinimumOrderQuantity"`
+				PackageType                     struct {
+					Name string `json:"Name"`
+				} `json:"PackageType"`
+				StandardPricing []struct {
+					BreakQuantity int     `json:"BreakQuantity"`
+					UnitPrice     float64 `json:"UnitPrice"`
+				} `json:"StandardPricing"`
+			} `json:"ProductVariations"`
 		} `json:"Product"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {
 		return nil, err
 	}
-	var breaks []PriceBreak
-	for _, sp := range details.Product.StandardPricing {
-		breaks = append(breaks, PriceBreak{Qty: sp.BreakQuantity, UnitPrice: sp.UnitPrice})
+	var best *DistributorOffer
+	bestPrice := math.MaxFloat64
+	for _, variation := range details.Product.ProductVariations {
+		var breaks []PriceBreak
+		for _, sp := range variation.StandardPricing {
+			breaks = append(breaks, PriceBreak{Qty: sp.BreakQuantity, UnitPrice: sp.UnitPrice})
+		}
+		price := unitPriceForQuantity(breaks, targetQty)
+		if price <= 0 || targetQty < variation.MinimumOrderQuantity || price >= bestPrice {
+			continue
+		}
+		bestPrice = price
+		offer := DistributorOffer{Distributor: "DigiKey", Sku: variation.DigiKeyProductNumber, Mpn: details.Product.ManufacturerProductNumber,
+			Manufacturer: details.Product.Manufacturer.Name, Description: details.Product.Description.ProductDescription,
+			Package: variation.PackageType.Name, LifecycleStatus: details.Product.ProductStatus.Status, StockQty: variation.QuantityAvailableforPackageType,
+			Moq: variation.MinimumOrderQuantity, PriceBreaks: breaks, Source: "digikey_api_live", FetchedAt: time.Now().UTC().Format(time.RFC3339)}
+		best = &offer
 	}
-	return []DistributorOffer{
-		{
-			Distributor:     "DigiKey",
-			Sku:             details.Product.ManufacturerProductNumber + "-ND",
-			Mpn:             details.Product.ManufacturerProductNumber,
-			Manufacturer:    details.Product.Manufacturer.Name,
-			Description:     details.Product.Description.ProductDescription,
-			Package:         "Standard",
-			LifecycleStatus: details.Product.ProductStatus.Status,
-			StockQty:        details.Product.QuantityAvailable,
-			Moq:             1,
-			LeadTimeWeeks:   6,
-			PriceBreaks:     breaks,
-			Source:          "digikey_api_live",
-			FetchedAt:       time.Now().UTC().Format(time.RFC3339),
-		},
-	}, nil
+	if best == nil {
+		return nil, fmt.Errorf("no DigiKey package pricing available at requested quantity")
+	}
+	return []DistributorOffer{*best}, nil
 }
 
 func (s *IngestServer) LookupCatalogPart(norm string) (CatalogPart, bool) {
-	if part, ok := s.catalog[norm]; ok {
-		return part, true
-	}
-	// Prefix matching for common component families
-	for key, part := range s.catalog {
-		if strings.HasPrefix(norm, key) || strings.HasPrefix(key, norm) {
-			pCopy := part
-			pCopy.Mpn = norm
-			return pCopy, true
-		}
-	}
-	// Synthesize realistic baseline component profile for unknown MPNs
-	isObs := strings.Contains(norm, "OBS") || strings.Contains(norm, "EOL")
-	lifecycle := "Active"
-	if isObs {
-		lifecycle = "Obsolete"
-	} else if strings.Contains(norm, "NRND") {
-		lifecycle = "NRND"
-	}
-
-	unitPrice := 0.45
-	category := "Integrated Circuits (ICs)"
-	pkg := "SMD"
-	mfr := "Generic Semiconductor"
-	if strings.HasPrefix(norm, "STM32") || strings.HasPrefix(norm, "GD32") || strings.HasPrefix(norm, "ATSAM") {
-		unitPrice = 4.20
-		category = "Embedded Microcontrollers"
-		pkg = "LQFP-64"
-		mfr = "STMicroelectronics"
-	} else if strings.HasPrefix(norm, "RC") || strings.HasPrefix(norm, "CRCW") || strings.HasPrefix(norm, "ERJ") {
-		unitPrice = 0.0045
-		category = "Chip Resistors - Surface Mount"
-		pkg = "0603 (1608 Metric)"
-		mfr = "Yageo / Vishay"
-	} else if strings.HasPrefix(norm, "GRM") || strings.HasPrefix(norm, "CL10") || strings.HasPrefix(norm, "C0603") {
-		unitPrice = 0.011
-		category = "Multilayer Ceramic Capacitors (MLCC)"
-		pkg = "0603 (1608 Metric)"
-		mfr = "Murata / Samsung Electro-Mechanics"
-	} else if strings.HasPrefix(norm, "TPS") || strings.HasPrefix(norm, "LM") || strings.HasPrefix(norm, "TLV") {
-		unitPrice = 0.68
-		category = "PMIC - Voltage Regulators"
-		pkg = "SOT-223 / SOIC-8"
-		mfr = "Texas Instruments"
-	}
-
-	stockA := 4500
-	leadWeeks := 6
-	if isObs {
-		stockA = 0
-		leadWeeks = 52
-	}
-
-	return CatalogPart{
-		Mpn:             norm,
-		Manufacturer:    mfr,
-		Category:        category,
-		Description:     fmt.Sprintf("%s — %s (%s)", norm, category, pkg),
-		Package:         pkg,
-		LifecycleStatus: lifecycle,
-		Specs: map[string]string{
-			"package":     pkg,
-			"category":    category,
-			"rohs_status": "RoHS3 Compliant",
-		},
-		Offers: []DistributorOffer{
-			{
-				Distributor:     "DigiKey",
-				Sku:             norm + "-DK-ND",
-				Mpn:             norm,
-				Manufacturer:    mfr,
-				Description:     fmt.Sprintf("%s %s", norm, category),
-				Package:         pkg,
-				LifecycleStatus: lifecycle,
-				StockQty:        stockA,
-				Moq:             1,
-				LeadTimeWeeks:   leadWeeks,
-				PriceBreaks: []PriceBreak{
-					{Qty: 1, UnitPrice: math.Round(unitPrice*1.25*10000) / 10000},
-					{Qty: 100, UnitPrice: unitPrice},
-					{Qty: 1000, UnitPrice: math.Round(unitPrice*0.82*10000) / 10000},
-				},
-				Source: "catalog_verified",
-			},
-		},
-	}, false
+	part, ok := s.catalog[norm]
+	return part, ok
 }
 
 func buildReferenceCatalog() map[string]CatalogPart {
@@ -526,14 +497,14 @@ func buildReferenceCatalog() map[string]CatalogPart {
 			Package:         "LQFP-64 (10x10mm)",
 			LifecycleStatus: "Active",
 			Specs: map[string]string{
-				"core":          "ARM Cortex-M4F",
-				"clock_max":     "84 MHz",
-				"flash":         "512 KB",
-				"ram":           "96 KB",
-				"supply_range":  "1.7V - 3.6V",
-				"temp_range":    "-40°C to +85°C",
-				"package":       "LQFP-64",
-				"rohs_status":   "RoHS3 Compliant",
+				"core":         "ARM Cortex-M4F",
+				"clock_max":    "84 MHz",
+				"flash":        "512 KB",
+				"ram":          "96 KB",
+				"supply_range": "1.7V - 3.6V",
+				"temp_range":   "-40°C to +85°C",
+				"package":      "LQFP-64",
+				"rohs_status":  "RoHS3 Compliant",
 			},
 			Offers: []DistributorOffer{
 				{
@@ -623,7 +594,7 @@ func buildReferenceCatalog() map[string]CatalogPart {
 					LifecycleStatus: "Active",
 					StockQty:        19400,
 					Moq:             1,
-					LeadTimeWeeks:   6,
+					LeadTimeWeeks:   0,
 					PriceBreaks: []PriceBreak{
 						{Qty: 1, UnitPrice: 3.65},
 						{Qty: 100, UnitPrice: 2.95},
@@ -677,7 +648,7 @@ func buildReferenceCatalog() map[string]CatalogPart {
 					LifecycleStatus: "Active",
 					StockQty:        42100,
 					Moq:             1,
-					LeadTimeWeeks:   6,
+					LeadTimeWeeks:   0,
 					PriceBreaks: []PriceBreak{
 						{Qty: 1, UnitPrice: 0.78},
 						{Qty: 100, UnitPrice: 0.49},
@@ -696,7 +667,7 @@ func buildReferenceCatalog() map[string]CatalogPart {
 					LifecycleStatus: "Active",
 					StockQty:        38900,
 					Moq:             1,
-					LeadTimeWeeks:   6,
+					LeadTimeWeeks:   0,
 					PriceBreaks: []PriceBreak{
 						{Qty: 1, UnitPrice: 0.79},
 						{Qty: 100, UnitPrice: 0.48},
@@ -959,7 +930,7 @@ func (s *IngestServer) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		"live_connectors": map[string]bool{
 			"digikey_v4": s.digikeyClientID != "" && s.digikeySecret != "",
 			"mouser_v1":  s.mouserApiKey != "",
-			"nexar_gql":  s.nexarClientID != "" && s.nexarSecret != "",
+			"nexar_gql":  false,
 		},
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
@@ -990,8 +961,9 @@ func (s *IngestServer) handleEnrichBatch(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "invalid JSON payload", http.StatusBadRequest)
 		return
 	}
-	if len(req.Mpns) > 500 {
-		req.Mpns = req.Mpns[:500]
+	if len(req.Mpns) == 0 || len(req.Mpns) > 500 || req.TargetBatchSize < 1 {
+		http.Error(w, "Provide 1–500 parts and a positive target quantity", http.StatusBadRequest)
+		return
 	}
 	resp := s.EnrichBatch(r.Context(), req.Mpns, req.TargetBatchSize)
 	w.Header().Set("Content-Type", "application/json")

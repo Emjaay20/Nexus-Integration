@@ -1,17 +1,36 @@
 #!/bin/sh
-set -e
+set -eu
 
-echo "[nexus-entrypoint] Starting Go distributor ingestion service on :8090..."
+pids=""
+cleanup() { kill $pids 2>/dev/null || true; }
+trap cleanup EXIT
+trap 'exit 0' TERM INT
+
+echo "[nexus-entrypoint] Starting distributor ingestion on :8090"
 INGEST_PORT=8090 /usr/local/bin/nexus-ingest &
+pids="$pids $!"
 
-echo "[nexus-entrypoint] Starting Rust Platform Core (actix-web) on :8088..."
+echo "[nexus-entrypoint] Starting platform core on :8088"
 HOST=127.0.0.1 PORT=8088 GO_INGEST_URL=http://127.0.0.1:8090 /usr/local/bin/platform-core &
+pids="$pids $!"
 
-echo "[nexus-entrypoint] Starting Next.js 16 application on :${PORT:-3000}..."
 cd /app/apps/web
 export RUST_BACKEND_URL="http://127.0.0.1:8088"
 export GO_INGEST_URL="http://127.0.0.1:8090"
 export HOSTNAME="0.0.0.0"
 export PORT="${PORT:-3000}"
+echo "[nexus-entrypoint] Starting workspace on :$PORT"
+node node_modules/next/dist/bin/next start &
+pids="$pids $!"
 
-exec npm start
+# Stop the container if any service exits, so the host can restart the full stack.
+while :; do
+    for pid in $pids; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            echo "[nexus-entrypoint] A service exited; stopping the container." >&2
+            exit 1
+        fi
+    done
+    sleep 2 &
+    wait $! || true
+done

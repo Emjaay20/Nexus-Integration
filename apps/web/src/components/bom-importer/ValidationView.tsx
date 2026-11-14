@@ -23,7 +23,7 @@ export function ValidationView({ rows, onContinue, onBack }: ValidationViewProps
             animate={{ opacity: 1 }}
             className="max-w-5xl mx-auto"
         >
-            <div className="flex gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                 <SummaryCard
                     icon={<CheckCircle className="w-6 h-6 text-green-600" />}
                     title="Valid Rows"
@@ -46,11 +46,11 @@ export function ValidationView({ rows, onContinue, onBack }: ValidationViewProps
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
                 <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-slate-800">Processing Data</h3>
+                    <h3 className="font-semibold text-slate-800">Validation results</h3>
                     <span className="text-sm text-slate-500">{rows.length} total rows</span>
                 </div>
 
-                <div className="max-h-[500px] overflow-y-auto">
+                <div className="max-h-[500px] overflow-auto">
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0">
                             <tr>

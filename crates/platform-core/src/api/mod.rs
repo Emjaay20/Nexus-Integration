@@ -157,7 +157,7 @@ pub async fn ml_predict_risk(req: web::Json<MlPredictRequest>) -> impl Responder
 
     HttpResponse::Ok().json(MlPredictResponse {
         predictions,
-        model_version: "nexus-gbdt-risk-v2.1",
+        model_version: "nexus-heuristic-risk-v1",
     })
 }
 
@@ -194,7 +194,20 @@ pub struct PolyglotEnrichRequest {
 
 pub async fn polyglot_bom_enrich(req: web::Json<PolyglotEnrichRequest>) -> impl Responder {
     let go_url = env::var("GO_INGEST_URL").unwrap_or_else(|_| "http://127.0.0.1:8090".to_string());
+    if req.mpns.is_empty()
+        || req.mpns.len() > 500
+        || req
+            .mpns
+            .iter()
+            .any(|m| m.trim().is_empty() || m.len() > 128)
+    {
+        return HttpResponse::BadRequest().json(serde_json::json!({"error": "Provide 1–500 part numbers, each at most 128 characters."}));
+    }
     let batch_size = req.target_batch_size.unwrap_or(500);
+    if batch_size == 0 {
+        return HttpResponse::BadRequest()
+            .json(serde_json::json!({"error": "Quantity must be positive."}));
+    }
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(8))
         .build()
@@ -215,6 +228,13 @@ pub async fn polyglot_bom_enrich(req: web::Json<PolyglotEnrichRequest>) -> impl 
             if let Ok(mut body) = resp.json::<serde_json::Value>().await {
                 if let Some(results) = body.get_mut("results").and_then(|v| v.as_array_mut()) {
                     for item in results.iter_mut() {
+                        if item["distributor_count"].as_u64().unwrap_or(0) == 0
+                            || (item["data_source"] == "live"
+                                && item["max_lead_time_weeks"].as_u64().unwrap_or(0) == 0)
+                        {
+                            item["ml_risk_prediction"] = serde_json::Value::Null;
+                            continue;
+                        }
                         let mpn = item["normalized_mpn"].as_str().unwrap_or("").to_string();
                         let mfr = item["manufacturer"].as_str().unwrap_or("").to_string();
                         let cat = item["category"].as_str().unwrap_or("").to_string();
@@ -252,42 +272,8 @@ pub async fn polyglot_bom_enrich(req: web::Json<PolyglotEnrichRequest>) -> impl 
         _ => {}
     }
 
-    // Fallback if Go ingest daemon is unreachable
-    let mut fallback_results = Vec::new();
-    for raw in &req.mpns {
-        let norm = BomEngine::normalize_mpn(raw);
-        let pred = MlRiskEngine::predict_component_risk(&MlComponentFeatures {
-            mpn: norm.clone(),
-            manufacturer: "Catalog Fallback".to_string(),
-            category: "Electronic Component".to_string(),
-            package: "Standard".to_string(),
-            description: format!("{} component", norm),
-            lead_time_weeks: 8,
-            stock_qty: 2500,
-            required_qty: batch_size as u64,
-            distributor_count: 2,
-            lifecycle_status: "Active".to_string(),
-            unit_price_usd: 0.75,
-        });
-        fallback_results.push(serde_json::json!({
-            "query_mpn": raw,
-            "normalized_mpn": norm,
-            "manufacturer": "Catalog Fallback",
-            "lifecycle_status": "Active",
-            "total_stock": 2500,
-            "distributor_count": 2,
-            "best_unit_price_at_qty": 0.75,
-            "best_distributor": "DigiKey",
-            "min_lead_time_weeks": 6,
-            "max_lead_time_weeks": 8,
-            "ml_risk_prediction": pred,
-        }));
-    }
-
-    HttpResponse::Ok().json(serde_json::json!({
-        "target_batch_size": batch_size,
-        "total_parts_queried": req.mpns.len(),
-        "engine": "rust-local-fallback",
-        "results": fallback_results,
+    HttpResponse::ServiceUnavailable().json(serde_json::json!({
+        "error": "Distributor service unavailable. No stock or pricing can be verified. Please retry.",
+        "results": []
     }))
 }

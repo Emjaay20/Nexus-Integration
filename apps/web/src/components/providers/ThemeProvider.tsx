@@ -20,14 +20,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         setMounted(true);
-        const stored = localStorage.getItem('nexus-theme') as Theme | null;
-        if (stored) {
-            setTheme(stored);
-            document.documentElement.classList.toggle('dark', stored === 'dark');
-        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            setTheme('dark');
-            document.documentElement.classList.add('dark');
-        }
+        // The shared workspace uses the paper-and-ink palette in all system themes.
+        document.documentElement.classList.remove('dark');
+        setTheme('light');
     }, []);
 
     const toggleTheme = () => {

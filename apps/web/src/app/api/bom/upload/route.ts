@@ -15,10 +15,11 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const file = formData.get('file') as File;
 
-        if (!file) {
+        if (!(file instanceof File)) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
+        if(file.size > 5 * 1024 * 1024) return NextResponse.json({error:'File is too large (max 5MB).'}, {status:413});
         const buffer = await file.arrayBuffer();
         const fileType = file.name.split('.').pop()?.toLowerCase();
 
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
             const text = new TextDecoder().decode(buffer);
             const result = Papa.parse(text, { header: true, skipEmptyLines: true });
             if (result.errors.length > 0) {
-                console.error('CSV Parse Errors:', result.errors);
+                return NextResponse.json({error:'Invalid CSV structure. Check quoting and make sure each row has the same columns.'}, {status:400});
             }
             data = result.data;
             headers = result.meta.fields || [];
@@ -47,9 +48,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 });
         }
 
+        if (!headers.length || !data.length) return NextResponse.json({error:'The file has no data rows.'}, {status:400});
+        if (data.length > 500) return NextResponse.json({error:'Upload at most 500 rows per file. Split larger BOMs before importing.'}, {status:400});
         return NextResponse.json({
             headers,
-            data: data.slice(0, 500) // Limit to 500 rows for preview/performance in this demo
+            data
         });
 
     } catch (error) {

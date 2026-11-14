@@ -98,7 +98,7 @@ export function FileUpload({ onFileSelect, accept = '.csv, .xlsx, .xls' }: FileU
           type="file"
           className="hidden"
           accept={accept}
-          onChange={handleChange}
+          onChange={handleChange} aria-label="Upload BOM file"
         />
 
         <AnimatePresence mode="wait">

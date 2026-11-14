@@ -1,5 +1,6 @@
 // Force TS re-evaluation
 
+import Link from 'next/link';
 import { RefreshCw, Activity, Wifi, Clock, AlertTriangle } from 'lucide-react';
 import { IntegrationCard } from '@/components/integration-hub/IntegrationCard';
 import { ActivityFeed } from '@/components/integration-hub/ActivityFeed';
@@ -30,12 +31,10 @@ export default async function IntegrationHubPage({
         <div className="p-4 sm:p-6 lg:p-8">
             <header className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">Connection overview</h1>
                     <p className="text-slate-500">Overview of your system connections.</p>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm">
-                    <RefreshCw className="w-4 h-4 text-slate-400" /> Refresh Status
-                </button>
+                <Link href="/integration-hub" className="btn btn-secondary btn-sm"><RefreshCw size={14}/> Refresh status</Link>
             </header>
 
             <GettingStartedBanner />

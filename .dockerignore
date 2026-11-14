@@ -7,3 +7,7 @@ target
 **/node_modules
 **/.env
 **/.DS_Store
+**/.env.*
+!**/.env.example
+**/playwright-report
+**/test-results

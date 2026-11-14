@@ -1,8 +1,7 @@
 //! Quantitative ML Risk Scorer & Parametric Embedding Engine
 //!
-//! - Logistic / Gradient-Boosted tree ensemble weights for component stock-out
-//!   and lead-time slippage probability (0.0 .. 1.0) with feature attribution.
-//! - Deterministic 64-dim parametric + semantic feature vector embedding with
+//! - Hand-authored heuristic sourcing risk score (0.0 .. 1.0), not a calibrated probability.
+//! - Deterministic 32-dim parametric + semantic feature vector embedding with
 //!   cosine similarity search for pin-compatible second-source qualification.
 
 use serde::{Deserialize, Serialize};
@@ -33,10 +32,11 @@ pub struct FeatureAttribution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MlPartRiskPrediction {
     pub mpn: String,
-    pub stockout_probability: f64, // 0.0 .. 1.0
-    pub predicted_lead_time_slip_weeks: f64,
+    pub risk_score: f64,   // 0.0 .. 1.0
     pub risk_tier: String, // "Low" | "Moderate" | "Elevated" | "Critical"
     pub top_attributions: Vec<FeatureAttribution>,
+    pub methodology: &'static str,
+    pub validated: bool,
     pub model_version: &'static str,
 }
 
@@ -65,7 +65,7 @@ pub struct SemanticSearchMatch {
 pub struct MlRiskEngine;
 
 impl MlRiskEngine {
-    /// Evaluates calibrated gradient-boosted log-odds model for stock-out probability.
+    /// Evaluates hand-authored sourcing rules. Scores are not calibrated probabilities.
     pub fn predict_component_risk(input: &MlComponentFeatures) -> MlPartRiskPrediction {
         // Intercept (base log-odds for healthy multi-sourced active component)
         let mut log_odds: f64 = -2.20;
@@ -162,8 +162,6 @@ impl MlRiskEngine {
         let prob = 1.0 / (1.0 + (-log_odds).exp());
         let prob_rounded = (prob * 1000.0).round() / 1000.0;
 
-        let slip_weeks = ((prob * (lt * 0.45 + 2.0)) * 10.0).round() / 10.0;
-
         let risk_tier = if prob_rounded >= 0.75 {
             "Critical"
         } else if prob_rounded >= 0.45 {
@@ -183,11 +181,12 @@ impl MlRiskEngine {
 
         MlPartRiskPrediction {
             mpn: input.mpn.clone(),
-            stockout_probability: prob_rounded,
-            predicted_lead_time_slip_weeks: slip_weeks,
+            risk_score: prob_rounded,
             risk_tier: risk_tier.to_string(),
             top_attributions: attributions,
-            model_version: "nexus-gbdt-risk-v2.1 (in-process Rust inference)",
+            methodology: "Hand-authored heuristic; not a probability or validated forecast",
+            validated: false,
+            model_version: "nexus-heuristic-risk-v1",
         }
     }
 
@@ -296,7 +295,7 @@ impl MlRiskEngine {
                 category: "Embedded Microcontrollers".to_string(),
                 package: "LQFP-64".to_string(),
                 description:
-                    "ARM Cortex-M4 32-bit MCU 168MHz 1024KB Flash LQFP-64 STM32F4 Pin-Compatible"
+                    "ARM Cortex-M4 32-bit MCU 168MHz 1024KB Flash LQFP-64 STM32F4 alternative candidate"
                         .to_string(),
                 unit_price_usd: 2.82,
                 stock_qty: 43900,
@@ -310,7 +309,7 @@ impl MlRiskEngine {
                 category: "Embedded Microcontrollers".to_string(),
                 package: "LQFP-64".to_string(),
                 description:
-                    "ARM Cortex-M4F 32-bit MCU 168MHz 1MB Flash LQFP-64 Industrial Drop-in STM32"
+                    "ARM Cortex-M4F 32-bit MCU 168MHz 1MB Flash LQFP-64 Industrial STM32 alternative candidate"
                         .to_string(),
                 unit_price_usd: 2.64,
                 stock_qty: 28100,
@@ -415,9 +414,23 @@ impl MlRiskEngine {
         let q_vec = Self::embed_component_text(query);
         let q_upper = query.to_uppercase();
         let catalog = Self::reference_vector_catalog();
+        let anchor = catalog
+            .iter()
+            .find(|e| q_upper.contains(&e.mpn.to_uppercase()))
+            .map(|e| (e.mpn.clone(), e.category.clone(), e.package.clone()));
 
         let mut matches: Vec<SemanticSearchMatch> = catalog
             .into_iter()
+            .filter(|entry| {
+                anchor
+                    .as_ref()
+                    .map(|(mpn, category, package)| {
+                        entry.mpn != *mpn
+                            && entry.category == *category
+                            && entry.package == *package
+                    })
+                    .unwrap_or(true)
+            })
             .map(|entry| {
                 let doc = format!(
                     "{} {} {} {} {}",
@@ -431,7 +444,7 @@ impl MlRiskEngine {
                 let sim = Self::cosine_similarity(&q_vec, &d_vec);
                 let pkg_match = q_upper.contains(&entry.package.to_uppercase());
                 SemanticSearchMatch {
-                    drop_in_qualified: sim >= 0.65,
+                    drop_in_qualified: false,
                     package_match: pkg_match,
                     cosine_similarity: sim,
                     entry,
@@ -444,7 +457,7 @@ impl MlRiskEngine {
                 .partial_cmp(&a.cosine_similarity)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        matches.truncate(top_k.max(1));
+        matches.truncate(top_k.clamp(1, 20));
         matches
     }
 }
@@ -485,16 +498,30 @@ mod tests {
         let pred_low = MlRiskEngine::predict_component_risk(&low_risk);
         let pred_high = MlRiskEngine::predict_component_risk(&high_risk);
 
-        assert!(pred_low.stockout_probability < 0.15);
-        assert!(pred_high.stockout_probability > 0.85);
+        assert!(pred_low.risk_score < 0.15);
+        assert!(pred_high.risk_score > 0.85);
         assert_eq!(pred_high.risk_tier, "Critical");
     }
 
     #[test]
     fn test_semantic_vector_search_ranks_compatible_family_first() {
         let results = MlRiskEngine::semantic_search("STM32F401RET6 ARM Cortex-M4 LQFP-64 MCU", 3);
-        assert_eq!(results.len(), 3);
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|r| r.entry.mpn != "STM32F401RET6"
+            && r.entry.package == "LQFP-64"
+            && r.entry.category == "Embedded Microcontrollers"));
         assert!(results[0].entry.mpn.contains("32F4"));
         assert!(results[0].cosine_similarity > 0.70);
+    }
+}
+
+#[cfg(test)]
+mod transparency_tests {
+    use super::*;
+    #[test]
+    fn similarity_does_not_qualify_a_drop_in_replacement() {
+        let matches = MlRiskEngine::semantic_search("STM32F401RET6 LQFP-64", 4);
+        assert!(!matches.is_empty());
+        assert!(matches.iter().all(|m| !m.drop_in_qualified));
     }
 }

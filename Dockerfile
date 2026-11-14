@@ -35,7 +35,7 @@ WORKDIR /app
 COPY --from=go-builder /usr/local/bin/nexus-ingest /usr/local/bin/nexus-ingest
 COPY --from=rust-builder /usr/src/nexus/target/release/platform-core /usr/local/bin/platform-core
 COPY --from=rust-builder /usr/src/nexus/target/release/platform-cli /usr/local/bin/platform-cli
-COPY --from=web-builder /app/apps/web /app/apps/web
+COPY --from=web-builder --chown=node:node /app/apps/web /app/apps/web
 COPY deploy/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
@@ -44,6 +44,10 @@ ENV NODE_ENV=production \
     RUST_BACKEND_URL=http://127.0.0.1:8088 \
     GO_INGEST_URL=http://127.0.0.1:8090 \
     RUST_LOG=info
+
+USER node
+
+HEALTHCHECK --interval=30s --timeout=8s --start-period=30s --retries=3 CMD curl -fsS "http://127.0.0.1:${PORT:-3000}/api/health" || exit 1
 
 EXPOSE 3000
 

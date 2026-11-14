@@ -1,52 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 
-// Pure unit test version of validator logic
-async function validateData(data, mapping) {
-    return data.map((row, index) => {
-        const messages = [];
-        let status = 'valid';
-
-        const partNumber = String(row[mapping.partNumber] || '').trim();
-        const quantityRaw = row[mapping.quantity];
-        const description = String(row[mapping.description] || '').trim();
-        const manufacturer = String(row[mapping.manufacturer] || '').trim();
-
-        let quantity = 0;
-        if (!quantityRaw) {
-            messages.push('Missing quantity');
-            status = 'invalid';
-        } else {
-            const parsed = parseFloat(String(quantityRaw).replace(/,/g, ''));
-            if (isNaN(parsed) || parsed <= 0) {
-                messages.push(`Invalid quantity: "${quantityRaw}"`);
-                status = 'invalid';
-            } else {
-                quantity = parsed;
-            }
-        }
-
-        if (!partNumber) {
-            messages.push('Missing Part Number');
-            status = 'invalid';
-        } else if (partNumber.length < 3) {
-            messages.push('Part Number too short (min 3 chars)');
-            status = 'warning';
-        }
-
-        if (!description && status !== 'invalid') {
-            messages.push('Missing description');
-            if (status === 'valid') status = 'warning';
-        }
-
-        return {
-            id: `row-${index}`,
-            mapped: { partNumber, quantity, description, manufacturer },
-            status,
-            messages,
-        };
-    });
-}
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+const source = readFileSync(new URL('../src/lib/validator.ts', import.meta.url), 'utf8');
+const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+const { validateData } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 describe('BOM Validator Unit Tests', () => {
     const mapping = {
@@ -105,4 +64,12 @@ describe('BOM Validator Unit Tests', () => {
         assert.strictEqual(result[1].status, 'warning');
         assert(result[1].messages.some(m => m.includes('Missing description')));
     });
+});
+
+test('rejects partial, fractional, and infinite quantities without downgrading errors', async () => {
+ const mapping={partNumber:'MPN',quantity:'Qty',description:'Desc',manufacturer:'Mfr'};
+ for(const Qty of ['10pcs','1.5','Infinity','-1','0','']) {
+  const [row]=await validateData([{MPN:'AB',Qty,Desc:'test'}],mapping);
+  assert.equal(row.status,'invalid',`quantity ${Qty} must remain invalid`);
+ }
 });

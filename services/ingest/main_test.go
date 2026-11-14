@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestNormalizeMpn(t *testing.T) {
 	cases := map[string]string{
-		"STM32F401RET6-TR":  "STM32F401RET6",
-		"lm1117-3.3/nopb":   "LM1117-3.3",
+		"STM32F401RET6-TR":   "STM32F401RET6",
+		"lm1117-3.3/nopb":    "LM1117-3.3",
 		"RC0603FR-0710KL-ND": "RC0603FR-0710KL",
 	}
 	for input, want := range cases {
@@ -68,5 +70,82 @@ func TestHttpEnrichEndpoint(t *testing.T) {
 	}
 	if len(parsed.Results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(parsed.Results))
+	}
+}
+
+func TestReferenceDataHasExplicitProvenanceAndNoFetchTime(t *testing.T) {
+	s := NewIngestServer()
+	s.digikeyClientID = ""
+	s.digikeySecret = ""
+	s.mouserApiKey = ""
+	part := s.enrichSinglePart(context.Background(), "STM32F401RET6", 1000)
+	if part.DataSource != "reference" || len(part.Warnings) == 0 {
+		t.Fatal("reference provenance missing")
+	}
+	for _, offer := range part.Offers {
+		if offer.FetchedAt != "" || offer.Source != "reference_catalog" {
+			t.Fatal("reference offer masquerades as a live quote")
+		}
+	}
+}
+func TestUnknownAndPartialPartsDoNotReceiveInventedOffers(t *testing.T) {
+	s := NewIngestServer()
+	s.digikeyClientID = ""
+	s.mouserApiKey = ""
+	for _, mpn := range []string{"UNKNOWN-123456", "STM32F401", "STM32F401RET6-FAKE"} {
+		part := s.enrichSinglePart(context.Background(), mpn, 100)
+		if part.DataSource != "unavailable" || len(part.Offers) != 0 || part.TotalStock != 0 || part.BestUnitPriceAtQty != 0 {
+			t.Fatalf("invented offer for %s", mpn)
+		}
+	}
+}
+
+func TestQuantityPricingUnsortedAndBelowMOQ(t *testing.T) {
+	breaks := []PriceBreak{{Qty: 1000, UnitPrice: 1}, {Qty: 1, UnitPrice: 3}, {Qty: 100, UnitPrice: 2}}
+	if unitPriceForQuantity(breaks, 200) != 2 {
+		t.Fatal("wrong tier for unsorted price breaks")
+	}
+	if unitPriceForQuantity([]PriceBreak{{Qty: 100, UnitPrice: 2}}, 10) != 0 {
+		t.Fatal("must not quote below minimum tier")
+	}
+}
+
+type testTransport func(*http.Request) (*http.Response, error)
+
+func (f testTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+func TestDigiKeyV4UsesVariationPricingAndMOQ(t *testing.T) {
+	s := NewIngestServer()
+	s.digikeyClientID = "fixture-client"
+	s.digikeySecret = "fixture-secret"
+	s.mouserApiKey = ""
+	s.httpClient = &http.Client{Transport: testTransport(func(r *http.Request) (*http.Response, error) {
+		body := `{"access_token":"fixture-token"}`
+		if r.URL.Path != "/v1/oauth2/token" {
+			body = `{"Product":{"ManufacturerProductNumber":"STM32F401RET6","Manufacturer":{"Name":"ST"},"Description":{"ProductDescription":"MCU"},"ProductStatus":{"Status":"Active"},"ProductVariations":[{"DigiKeyProductNumber":"cut-tape","MinimumOrderQuantity":1,"QuantityAvailableforPackageType":120,"PackageType":{"Name":"Cut Tape"},"StandardPricing":[{"BreakQuantity":1,"UnitPrice":5},{"BreakQuantity":100,"UnitPrice":4}]},{"DigiKeyProductNumber":"reel","MinimumOrderQuantity":1000,"QuantityAvailableforPackageType":5000,"StandardPricing":[{"BreakQuantity":1000,"UnitPrice":3}]}]}}`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}
+	part := s.enrichSinglePart(context.Background(), "STM32F401RET6", 100)
+	if part.DataSource != "live" || part.BestUnitPriceAtQty != 4 || part.Offers[0].Sku != "cut-tape" {
+		t.Fatalf("incorrect live variation quote: %+v", part)
+	}
+	if part.Manufacturer != "ST" || part.DistributorCount != 1 || part.Offers[0].FetchedAt == "" {
+		t.Fatal("live metadata missing")
+	}
+}
+func TestFailedLiveLookupDoesNotPretendToBeLive(t *testing.T) {
+	s := NewIngestServer()
+	s.digikeyClientID = "fixture-client"
+	s.digikeySecret = "fixture-secret"
+	s.mouserApiKey = ""
+	s.httpClient = &http.Client{Transport: testTransport(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 401, Body: io.NopCloser(strings.NewReader("unauthorized")), Header: make(http.Header)}, nil
+	})}
+	part := s.enrichSinglePart(context.Background(), "STM32F401RET6", 100)
+	if part.DataSource != "reference" {
+		t.Fatal("failed API must not be marked live")
+	}
+	if !strings.Contains(strings.Join(part.Warnings, " "), "lookup failed") {
+		t.Fatal("lookup failure must be visible")
 	}
 }

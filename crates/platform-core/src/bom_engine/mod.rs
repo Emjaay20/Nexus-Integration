@@ -76,88 +76,92 @@ impl BomEngine {
         let mut valid_lines = 0;
         let mut error_lines = 0;
 
-        let lines: Vec<&str> = raw_csv.lines().collect();
-        if lines.is_empty() {
-            return BomParseSummary {
-                total_lines: 0,
-                valid_lines: 0,
-                error_lines: 0,
-                total_components: 0,
-                estimated_total_cost: 0.0,
-                high_risk_parts_count: 0,
-                items: Vec::new(),
+        let raw_csv = raw_csv.trim_start_matches('\u{feff}');
+        let first = raw_csv
+            .lines()
+            .find(|l| !l.trim().is_empty() && !l.starts_with('#'))
+            .unwrap_or("");
+        let delimiter = if first.contains('\t') {
+            b'\t'
+        } else if first.contains(';') {
+            b';'
+        } else {
+            b','
+        };
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .flexible(true)
+            .trim(csv::Trim::All)
+            .comment(Some(b'#'))
+            .delimiter(delimiter)
+            .from_reader(raw_csv.as_bytes());
+        let mut headers: Option<Vec<String>> = None;
+        for (idx, record) in reader.records().enumerate() {
+            let cols = match record {
+                Ok(r) => r,
+                Err(_) => {
+                    error_lines += 1;
+                    continue;
+                }
             };
-        }
-
-        // Detect header row or start directly
-        let mut start_idx = 0;
-        let first_lower = lines[0].to_lowercase();
-        if first_lower.contains("mpn")
-            || first_lower.contains("part")
-            || first_lower.contains("description")
-        {
-            start_idx = 1;
-        }
-
-        for (idx, line) in lines.iter().enumerate().skip(start_idx) {
-            let line_trimmed = line.trim();
-            if line_trimmed.is_empty() || line_trimmed.starts_with('#') {
+            let names: Vec<String> = cols
+                .iter()
+                .map(|v| v.to_lowercase().replace([' ', '_', '-'], ""))
+                .collect();
+            if idx == 0
+                && names
+                    .iter()
+                    .any(|v| matches!(v.as_str(), "mpn" | "partnumber" | "manufacturerpartnumber"))
+            {
+                headers = Some(names);
                 continue;
             }
-
-            // Split by comma or tab or semicolon
-            let delimiter = if line_trimmed.contains('\t') {
-                '\t'
-            } else if line_trimmed.contains(';') {
-                ';'
-            } else {
-                ','
+            let get = |aliases: &[&str], fallback: usize| -> &str {
+                let col = match &headers {
+                    Some(h) => h.iter().position(|v| aliases.contains(&v.as_str())),
+                    None => Some(fallback),
+                };
+                col.and_then(|i| cols.get(i)).unwrap_or("")
             };
-
-            let cols: Vec<&str> = line_trimmed.split(delimiter).map(|s| s.trim()).collect();
-            if cols.len() < 2 {
-                error_lines += 1;
-                continue;
-            }
-
-            let raw_mpn = cols[0].to_string();
+            let raw_mpn = get(&["mpn", "partnumber", "manufacturerpartnumber"], 0).to_string();
             let normalized_mpn = Self::normalize_mpn(&raw_mpn);
-
+            let quantity = get(&["quantity", "qty", "requiredqty"], 3)
+                .replace(',', "")
+                .parse::<u32>();
+            let quantity = match quantity {
+                Ok(q) if q > 0 => q,
+                _ => {
+                    error_lines += 1;
+                    continue;
+                }
+            };
             if normalized_mpn.is_empty() {
                 error_lines += 1;
                 continue;
             }
-
-            let manufacturer = if cols.len() > 1 && !cols[1].is_empty() {
-                cols[1].to_string()
-            } else {
-                "Unknown / Generic".to_string()
+            let manufacturer = match get(&["manufacturer", "mfr", "mfg"], 1) {
+                "" => "Unknown / Generic".to_string(),
+                value => value.to_string(),
             };
-
-            let description = if cols.len() > 2 {
-                cols[2].to_string()
-            } else {
-                String::new()
-            };
-
-            let quantity: u32 = cols.get(3).and_then(|q| q.parse::<u32>().ok()).unwrap_or(1);
-
-            let ref_des_raw = cols.get(4).copied().unwrap_or("");
-            let reference_designators: Vec<String> = if !ref_des_raw.is_empty() {
-                ref_des_raw
-                    .split([' ', ';', '|'])
-                    .filter(|s| !s.trim().is_empty())
-                    .map(|s| s.trim().to_uppercase())
-                    .collect()
-            } else {
-                Vec::new()
-            };
-
-            // Estimate price & lifecycle heuristics
-            let unit_price = cols
-                .get(5)
-                .and_then(|p| p.trim_start_matches(['$', '€', '£']).parse::<f64>().ok())
-                .or_else(|| Self::estimate_part_cost(&normalized_mpn));
+            let description = get(&["description", "desc"], 2).to_string();
+            let reference_designators: Vec<String> = get(
+                &[
+                    "designators",
+                    "referencedesignators",
+                    "refdes",
+                    "references",
+                ],
+                4,
+            )
+            .split([' ', ';', '|', ','])
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.trim().to_uppercase())
+            .collect();
+            let unit_price = get(&["price", "unitprice", "unitcost"], 5)
+                .trim_start_matches(['$', '€', '£'])
+                .parse::<f64>()
+                .ok()
+                .filter(|v| v.is_finite() && *v >= 0.0);
 
             let lifecycle = Self::infer_lifecycle(&normalized_mpn, &description);
             let is_high_risk = matches!(
@@ -186,7 +190,10 @@ impl BomEngine {
             valid_lines += 1;
 
             items.push(BomLineItem {
-                line_number: idx + 1,
+                line_number: cols
+                    .position()
+                    .map(|p| p.line() as usize)
+                    .unwrap_or(idx + 1),
                 raw_mpn,
                 normalized_mpn,
                 manufacturer,
@@ -220,22 +227,7 @@ impl BomEngine {
         } else if combined.contains("EOL") {
             ComponentLifecycle::EndOfLife
         } else {
-            ComponentLifecycle::Active
-        }
-    }
-
-    fn estimate_part_cost(mpn: &str) -> Option<f64> {
-        let upper = mpn.to_uppercase();
-        if upper.starts_with("STM32") || upper.starts_with("ESP32") || upper.starts_with("NXP") {
-            Some(3.85) // Microcontroller
-        } else if upper.starts_with('R') || upper.starts_with("RC") || upper.starts_with("CRCW") {
-            Some(0.005) // Passive Resistor
-        } else if upper.starts_with('C') || upper.starts_with("CC") || upper.starts_with("GRM") {
-            Some(0.012) // Ceramic Capacitor
-        } else if upper.starts_with("LM") || upper.starts_with("TPS") || upper.starts_with("MP") {
-            Some(0.65) // Power Management IC
-        } else {
-            Some(0.25)
+            ComponentLifecycle::Unknown
         }
     }
 }
@@ -271,5 +263,45 @@ LM358-OBSOLETE,Texas Instruments,Dual Op-Amp (Discontinued),1,U3,0.35
         assert_eq!(summary.high_risk_parts_count, 1);
         assert_eq!(summary.items[0].normalized_mpn, "STM32F401RET6");
         assert_eq!(summary.items[2].lifecycle, ComponentLifecycle::Obsolete);
+    }
+}
+
+#[cfg(test)]
+mod regression_tests {
+    use super::*;
+    #[test]
+    fn reordered_headers_and_optional_columns() {
+        let result = BomEngine::parse_bom_csv(
+            "Quantity,Manufacturer,MPN\n10,STMicroelectronics,STM32F401RET6",
+        );
+        assert_eq!(result.total_components, 10);
+        assert_eq!(result.items[0].manufacturer, "STMicroelectronics");
+        assert_eq!(result.items[0].description, "");
+        assert_eq!(result.items[0].unit_price_estimate, None);
+        assert_eq!(result.items[0].lifecycle, ComponentLifecycle::Unknown);
+    }
+    #[test]
+    fn quoted_commas_and_multiline_fields() {
+        let result = BomEngine::parse_bom_csv("MPN,Quantity,Description,Manufacturer\nABC123,2,\"Resistor, precision\nsecond line\",\"Example, Inc\"");
+        assert_eq!(result.valid_lines, 1);
+        assert_eq!(result.items[0].manufacturer, "Example, Inc");
+        assert!(result.items[0]
+            .description
+            .contains("precision\nsecond line"));
+    }
+    #[test]
+    fn rejects_invalid_quantities_instead_of_defaulting_to_one() {
+        let result =
+            BomEngine::parse_bom_csv("MPN,Qty\nABC,0\nDEF,10pcs\nGHI,-1\nJKL,1.5\nMNO,\nPQR,3");
+        assert_eq!(result.error_lines, 5);
+        assert_eq!(result.valid_lines, 1);
+        assert_eq!(result.total_components, 3);
+    }
+    #[test]
+    fn tab_delimited_bom_with_bom_marker() {
+        let result =
+            BomEngine::parse_bom_csv("\u{feff}Mfr\tQty\tPart Number\nST\t4\tSTM32F401RET6");
+        assert_eq!(result.total_components, 4);
+        assert_eq!(result.items[0].manufacturer, "ST");
     }
 }
