@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 );
 
 -- Settings Table
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);
+CREATE UNIQUE INDEX IF NOT EXISTS activity_logs_idempotency_key_key ON activity_logs(idempotency_key);
+
 CREATE TABLE IF NOT EXISTS organization_settings (
     id SERIAL PRIMARY KEY,
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,

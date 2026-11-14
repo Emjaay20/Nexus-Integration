@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 
 import { IntegrationConfig, IntegrationLog } from '@/types/integration';
 import { db } from '@/lib/db';
@@ -113,9 +114,10 @@ export const integrationService = {
 
     addActivityLog: async (userId: string, log: Omit<IntegrationLog, 'id' | 'time'> & { idempotencyKey?: string }): Promise<IntegrationLog> => {
         try {
-            if (log.idempotencyKey) {
+            const scopedKey = log.idempotencyKey ? createHash('sha256').update(`${userId}:${log.idempotencyKey}`).digest('hex') : null;
+            if (scopedKey) {
                 // Idempotency check
-                const existing = await db.query('SELECT * FROM activity_logs WHERE idempotency_key = $1', [log.idempotencyKey]);
+                const existing = await db.query('SELECT * FROM activity_logs WHERE idempotency_key = $1 AND user_id = $2', [scopedKey, userId]);
                 if (existing.rows.length > 0) {
                     const row = existing.rows[0];
                     return {
@@ -133,7 +135,8 @@ export const integrationService = {
 
             const result = await db.query(
                 `INSERT INTO activity_logs (user_id, event, integration_id, status, duration, payload, response, error, idempotency_key) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 ON CONFLICT (idempotency_key) DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
                  RETURNING *`,
                 [
                     userId,
@@ -144,7 +147,7 @@ export const integrationService = {
                     log.payload,
                     log.response ? JSON.stringify(log.response) : null,
                     log.error ? JSON.stringify(log.error) : null,
-                    log.idempotencyKey || null
+                    scopedKey
                 ]
             );
 

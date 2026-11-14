@@ -7,7 +7,7 @@ neonConfig.webSocketConstructor = ws;
 type AnyPool = PgPool | NeonPool;
 
 let _pool: AnyPool | null = null;
-let _schemaInitialized = false;
+let schemaPromise: Promise<void> | null = null;
 
 const BOOTSTRAP_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     idempotency_key VARCHAR(255) UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);
+CREATE UNIQUE INDEX IF NOT EXISTS activity_logs_idempotency_key_key ON activity_logs(idempotency_key);
 
 CREATE TABLE IF NOT EXISTS organization_settings (
     id SERIAL PRIMARY KEY,
@@ -139,14 +142,13 @@ function getPool(): AnyPool {
 }
 
 async function ensureSchema() {
-    if (_schemaInitialized) return;
-    _schemaInitialized = true;
-    try {
-        await (getPool() as any).query(BOOTSTRAP_SCHEMA_SQL);
-    } catch (err) {
-        _schemaInitialized = false;
-        console.error('Database schema initialization warning:', err);
+    if (!schemaPromise) {
+        schemaPromise = (async () => {
+            try { await (getPool() as any).query(BOOTSTRAP_SCHEMA_SQL); }
+            catch (error) { schemaPromise = null; throw error; }
+        })();
     }
+    await schemaPromise;
 }
 
 export const pool = new Proxy({} as PgPool, {
