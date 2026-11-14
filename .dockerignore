@@ -2,8 +2,7 @@
 .github
 .claude
 .gemini
-.next
-apps
+**/.next
 target
 **/node_modules
 **/.env
