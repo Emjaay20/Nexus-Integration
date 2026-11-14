@@ -121,7 +121,7 @@ export function ImporterWizard() {
         <div className="w-full max-w-5xl mx-auto">
             {uploadError && <p className="note error" role="alert" style={{marginBottom:20}}>{uploadError}</p>}
             {/* Progress Indicators (Simple for now) */}
-            <div className="flex items-center justify-between mb-10 px-0 max-w-2xl mx-auto">
+            <div className="flex items-center justify-between mb-10 px-4 max-w-2xl mx-auto">
                 <StepIndicator number={1} label="Upload" active={step >= 1} current={step === 1} />
                 <Connector active={step >= 2} />
                 <StepIndicator number={2} label="Map Columns" active={step >= 2} current={step === 2} />
@@ -219,7 +219,7 @@ function StepIndicator({ number, label, active, current }: { number: number, lab
                     number
                 ) : number}
             </div>
-            <span className={`text-xs font-medium absolute -bottom-6 w-24 text-center transition-colors ${active || current ? 'text-slate-700' : 'text-slate-400'}`}>
+            <span className={`text-[10px] sm:text-xs font-medium absolute -bottom-6 w-16 sm:w-24 text-center transition-colors ${active || current ? 'text-slate-700' : 'text-slate-400'}`}>
                 {label}
             </span>
         </div>
