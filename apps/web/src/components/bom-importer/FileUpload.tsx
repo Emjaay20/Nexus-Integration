@@ -1,17 +1,19 @@
+"use client";
 
-'use client';
-
-import { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileSpreadsheet, X, AlertCircle } from 'lucide-react';
-import clsx from 'clsx';
+import { useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Upload, FileSpreadsheet, X, AlertCircle } from "lucide-react";
+import clsx from "clsx";
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
   accept?: string;
 }
 
-export function FileUpload({ onFileSelect, accept = '.csv, .xlsx, .xls' }: FileUploadProps) {
+export function FileUpload({
+  onFileSelect,
+  accept = ".csv, .xlsx, .xls",
+}: FileUploadProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,28 +21,35 @@ export function FileUpload({ onFileSelect, accept = '.csv, .xlsx, .xls' }: FileU
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+    if (e.type === "dragenter" || e.type === "dragover") {
       setIsDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type === "dragleave") {
       setIsDragActive(false);
     }
   };
 
   const validateFile = (file: File) => {
     // Check extension
-    const validTypes = ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+    const validTypes = [
+      "text/csv",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+    ];
     // Simple extension check as backup
-    const validExtensions = ['.csv', '.xlsx', '.xls'];
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-    
-    if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
-      setError('Invalid file type. Please upload a CSV or Excel file.');
+    const validExtensions = [".csv", ".xlsx", ".xls"];
+    const fileExtension = "." + file.name.split(".").pop()?.toLowerCase();
+
+    if (
+      !validTypes.includes(file.type) &&
+      !validExtensions.includes(fileExtension)
+    ) {
+      setError("Invalid file type. Please upload a CSV or Excel file.");
       return false;
     }
-    
+
     // Check size (max 5MB for this demo)
     if (file.size > 5 * 1024 * 1024) {
-      setError('File is too large (max 5MB).');
+      setError("File is too large (max 5MB).");
       return false;
     }
 
@@ -80,25 +89,35 @@ export function FileUpload({ onFileSelect, accept = '.csv, .xlsx, .xls' }: FileU
       <motion.div
         className={clsx(
           "relative border-2 border-dashed rounded-xl p-12 transition-colors duration-200 ease-in-out text-center cursor-pointer overflow-hidden",
-          isDragActive ? "border-blue-500 bg-blue-50/50" : "border-slate-300 hover:border-slate-400 bg-slate-50",
-          error ? "border-red-300 bg-red-50" : ""
+          isDragActive
+            ? "border-blue-500 bg-blue-50/50"
+            : "border-slate-300 hover:border-slate-400 bg-slate-50",
+          error ? "border-red-300 bg-red-50" : "",
         )}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
         onClick={onButtonClick}
+        role="button"
+        tabIndex={0}
+        aria-label="Choose a CSV or Excel BOM file"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onButtonClick();
+          }
+        }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
       >
         <input
           ref={inputRef}
           type="file"
           className="hidden"
           accept={accept}
-          onChange={handleChange} aria-label="Upload BOM file"
+          onChange={handleChange}
+          aria-label="Upload BOM file"
         />
 
         <AnimatePresence mode="wait">
@@ -110,15 +129,21 @@ export function FileUpload({ onFileSelect, accept = '.csv, .xlsx, .xls' }: FileU
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-4"
             >
-              <div className={clsx(
-                "p-4 rounded-full transition-colors",
-                isDragActive ? "bg-blue-100 text-blue-600" : "bg-slate-200 text-slate-500"
-              )}>
+              <div
+                className={clsx(
+                  "p-4 rounded-full transition-colors",
+                  isDragActive
+                    ? "bg-blue-100 text-blue-600"
+                    : "bg-slate-200 text-slate-500",
+                )}
+              >
                 <Upload className="w-8 h-8" />
               </div>
               <div>
                 <p className="text-lg font-medium text-slate-700">
-                  {isDragActive ? "Drop your file here" : "Click to upload or drag and drop"}
+                  {isDragActive
+                    ? "Drop your file here"
+                    : "Click to upload or drag and drop"}
                 </p>
                 <p className="text-sm text-slate-500 mt-1">
                   CSV, Excel (XLSX, XLS) up to 5MB
@@ -133,16 +158,19 @@ export function FileUpload({ onFileSelect, accept = '.csv, .xlsx, .xls' }: FileU
               exit={{ opacity: 0, scale: 0.95 }}
               className="flex flex-col items-center gap-2 text-red-600"
             >
-               <div className="p-3 rounded-full bg-red-100 mb-2">
-                 <AlertCircle className="w-6 h-6" />
-               </div>
-               <p className="font-medium">{error}</p>
-               <button 
-                 onClick={(e) => { e.stopPropagation(); setError(null); }}
-                 className="text-sm underline mt-2 hover:text-red-800"
-               >
-                 Try again
-               </button>
+              <div className="p-3 rounded-full bg-red-100 mb-2">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <p className="font-medium">{error}</p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setError(null);
+                }}
+                className="text-sm underline mt-2 hover:text-red-800"
+              >
+                Try again
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

@@ -1738,3 +1738,37 @@ button:focus-visible {
     padding: 24px;
   }
 }
+.integration-list {
+  border-top: 1px solid var(--line-dark);
+  margin-top: 28px;
+}
+.integration-list .int-row:first-child {
+  border-top: 0;
+}
+.integration-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.integration-description {
+  min-width: 0;
+}
+.integration-description h3 {
+  font-size: 17px;
+  font-weight: 500;
+}
+@media (max-width: 850px) {
+  .integration-row {
+    grid-template-columns: 44px 1fr;
+  }
+  .integration-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+  .integration-row .sub {
+    overflow-wrap: anywhere;
+  }
+}
