@@ -3,9 +3,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const rustUrl = process.env.RUST_BACKEND_URL || "http://127.0.0.1:8088";
   const goUrl = process.env.GO_INGEST_URL || "http://127.0.0.1:8090";
-  const probe = async (url: string) => {
+  const probe = async (url: string, path = "health") => {
     try {
-      const r = await fetch(`${url}/health`, {
+      const r = await fetch(`${url}/${path}`, {
         cache: "no-store",
         signal: AbortSignal.timeout(3000),
       });
@@ -15,7 +15,7 @@ export async function GET() {
       return null;
     }
   };
-  const [rust, go] = await Promise.all([probe(rustUrl), probe(goUrl)]);
+  const [rust, go] = await Promise.all([probe(rustUrl, "ready"), probe(goUrl)]);
   const healthy = !!rust && !!go;
   return NextResponse.json(
     {

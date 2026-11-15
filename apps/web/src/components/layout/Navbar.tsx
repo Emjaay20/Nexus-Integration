@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Menu, X, ArrowUpRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 const links = [
+  ["Workspace", "/workspace"],
   ["Studio", "/platform-core"],
   ["BOM Importer", "/bom-importer"],
   ["Integrations", "/integration-hub"],

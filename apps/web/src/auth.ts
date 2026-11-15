@@ -39,7 +39,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (email === "demo@nexus.dev" && password === "demo1234") {
                     return {
                         id: DEMO_USER_ID,
-                        name: "Alex Rivera (Staff Engineer)",
+                        name: "Nexus Demo (read only)",
                         email: "demo@nexus.dev",
                         image: null,
                     }
@@ -77,7 +77,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                 const provider = account?.provider || "credentials"
                 const isDemo = email === "demo@nexus.dev"
-                const userId = isDemo ? DEMO_USER_ID : user.id
+                const userId = isDemo ? DEMO_USER_ID : provider === "credentials" ? user.id : undefined
 
                 const result = await db.query(
                     `INSERT INTO users (${userId ? "id, " : ""}email, name, image, provider)
@@ -96,6 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 user.id = dbUserId
             } catch (error) {
                 console.error("Error in signIn callback:", error)
+                return false
             }
             return true
         },

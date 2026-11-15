@@ -1,0 +1,19 @@
+name: nexus-dev
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nexus_dev
+      POSTGRES_PASSWORD: nexus_local_only
+      POSTGRES_DB: nexus_dev
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - nexus-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus_dev -d nexus_dev"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+volumes:
+  nexus-dev-data:

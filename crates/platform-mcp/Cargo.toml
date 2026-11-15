@@ -1,0 +1,13 @@
+[package]
+name = "nexus-platform-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "platform-mcp"
+path = "src/main.rs"
+
+[dependencies]
+nexus-platform-core = { path = "../platform-core" }
+serde_json.workspace = true

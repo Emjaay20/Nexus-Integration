@@ -24,7 +24,6 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("Munich Robotics OEM");
-  const [role, setRole] = useState("design_engineer");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -82,7 +81,6 @@ export function LoginForm() {
           name,
           password,
           organization,
-          role,
         }),
       });
       const data = await regRes.json();
@@ -311,7 +309,7 @@ export function LoginForm() {
               onClick={handleDemoLogin}
               className="text-xs text-blue-600 hover:text-blue-800 font-medium"
             >
-              Or sign in with one click using the pre-seeded Staff Engineer demo
+              Or sign in with one click using the pre-seeded Read-only Demo demo
               account →
             </button>
           </div>
@@ -378,24 +376,10 @@ export function LoginForm() {
                 />
               </div>
             </div>
-            <div>
-              <label
-                htmlFor="register-role"
-                className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1"
-              >
-                ABAC Role
-              </label>
-              <select
-                id="register-role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-2.5 py-2 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-xs focus:outline-none focus:border-blue-600"
-              >
-                <option value="design_engineer">OEM Design Engineer</option>
-                <option value="ems_procurement">EMS Procurement Lead</option>
-                <option value="platform_admin">Platform Staff Engineer</option>
-              </select>
-            </div>
+            <p className="note" style={{ fontSize: 11 }}>
+              Your account gets a private workspace. Only a workspace owner can
+              assign shared access.
+            </p>
           </div>
 
           <div>
@@ -411,7 +395,7 @@ export function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Create a strong password"
-              minLength={6}
+              minLength={10}
               required
               className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:border-blue-600"
             />
@@ -473,7 +457,7 @@ export function LoginForm() {
         <div className="space-y-4">
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
             <p className="text-xs font-semibold text-slate-900 mb-1">
-              Instant Staff Engineer Evaluation Session
+              Instant Read-only Demo Evaluation Session
             </p>
             <p className="text-xs text-slate-600 leading-relaxed">
               Signs in with a pre-seeded multi-tenant workspace (

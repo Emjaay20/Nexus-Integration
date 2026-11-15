@@ -22,6 +22,7 @@ export const authConfig = {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user
             const isOnProtected =
+                nextUrl.pathname.startsWith("/workspace") ||
                 nextUrl.pathname.startsWith("/integration-hub") ||
                 nextUrl.pathname.startsWith("/bom-importer") ||
                 nextUrl.pathname.startsWith("/developer")

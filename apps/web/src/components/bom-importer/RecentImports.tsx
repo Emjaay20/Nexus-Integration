@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { FileSpreadsheet, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 interface BomImport {
-    id: number;
+    id: string;
     filename: string;
     total_rows: number;
     valid_rows: number;

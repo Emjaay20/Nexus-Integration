@@ -1,8 +1,8 @@
 apiVersion: v2
-name: nexus-platform-core
-description: Helm chart for the Platform Core Rust service
+name: nexus-platform
+description: Nexus workspace, Rust core, and bounded distributor workers
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "0.1.0"
 keywords:
   - rust

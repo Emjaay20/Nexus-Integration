@@ -21,12 +21,22 @@ jobs:
       rust: ${{ steps.filter.outputs.rust }}
       go: ${{ steps.filter.outputs.go }}
       web: ${{ steps.filter.outputs.web }}
+      image: ${{ steps.filter.outputs.image }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
+            image:
+              - 'Dockerfile'
+              - 'deploy/**'
+              - 'crates/**'
+              - 'services/**'
+              - 'apps/web/**'
+              - 'Cargo.*'
+              - 'scripts/**'
+              - '.github/workflows/**'
             rust:
               - 'crates/**'
               - 'Cargo.toml'
@@ -57,7 +67,18 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   rust-test:
-    name: Rust tests
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexus_test
+          POSTGRES_PASSWORD: nexus_test
+          POSTGRES_DB: nexus_platform_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nexus_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    name: Rust, PostgreSQL isolation & MCP tests
     needs: changes
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
@@ -69,6 +90,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --locked
+      - run: cargo test --workspace --locked -- --ignored
+        env:
+          TEST_DATABASE_URL: postgresql://nexus_test:nexus_test@127.0.0.1:5432/nexus_platform_test
+      - run: cargo build --locked --bin platform-mcp
+      - run: python3 scripts/test-mcp.py target/debug/platform-mcp
 
   go-test:
     name: Go ingestion worker-pool tests
@@ -82,7 +108,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
       - run: go vet ./...
       - run: go test -v -race ./...
 
@@ -109,3 +135,58 @@ jobs:
           AUTH_SECRET: "ci-dummy-secret-32-chars-long-minimum"
           NEXTAUTH_SECRET: "ci-dummy-secret-32-chars-long-minimum"
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
+  verified-image:
+    name: Build once, verify Kubernetes, publish immutable image
+    needs: [changes, rust-lint, rust-test, go-test, web]
+    if: >-
+      always() && needs.changes.outputs.image == 'true' &&
+      !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: azure/setup-helm@v4.3.0
+        with:
+          version: v3.19.0
+      - uses: helm/kind-action@v1.12.0
+        with:
+          install_only: true
+          version: v0.32.0
+      - name: Select immutable commit tag
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.image.outputs.name }}
+          build-args: VCS_REF=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify readiness, rolling availability, and rollback
+        run: bash scripts/k8s-verify.sh
+        env:
+          NEXUS_VERIFY_IMAGE: ${{ steps.image.outputs.name }}
+      - uses: docker/login-action@v3
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the already-tested image
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+        run: |
+          docker push "$IMAGE"
+          docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}' > .nexus/evidence/tested-image.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: platform-release-evidence
+          path: .nexus/evidence/

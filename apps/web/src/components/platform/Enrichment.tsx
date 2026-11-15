@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ArrowRight, Loader2, Download } from "lucide-react";
 export type Part = {
+  required_quantity?: number;
   normalized_mpn: string;
   manufacturer: string;
   lifecycle_status: string;
@@ -39,7 +40,7 @@ export function PartsTable({ parts }: { parts: Part[] }) {
                 <td data-label="Part number">
                   <span className="mpn">{p.normalized_mpn}</span>
                   <span className="sub">
-                    {p.manufacturer || "Manufacturer unknown"}
+                    {p.manufacturer || "Manufacturer unknown"}{p.required_quantity ? ` · Qty ${p.required_quantity.toLocaleString()}` : ""}
                   </span>
                 </td>
                 <td data-label="Availability">

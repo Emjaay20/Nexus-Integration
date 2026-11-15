@@ -2,6 +2,7 @@
 members = [
     "crates/platform-core",
     "crates/platform-cli",
+    "crates/platform-mcp",
 ]
 resolver = "2"
 

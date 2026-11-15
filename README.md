@@ -18,7 +18,7 @@ Requirements: **Rust (stable)**, **Go 1.22+**, **Node.js 22+**.
 
 ```bash
 make install   # Install web dependencies
-make dev       # Starts Go ingest (:8090), Rust core (:8088), and Next.js web (:3000)
+make dev       # Starts an isolated database, Go (:18090), Rust (:18088), and Next.js (:3100)
 make test      # Runs Rust workspace tests, Go worker-pool tests, and web unit tests
 ```
 
@@ -28,7 +28,7 @@ The root `Dockerfile` builds a self-contained polyglot image running the Go inge
 
 ```bash
 make build-image
-docker run --rm -p 3000:3000 nexus-integration:latest
+docker run --rm --env-file /path/to/runtime.env -p 3000:3000 nexus-integration:latest
 ```
 
 ## Data provenance and limitations
@@ -38,3 +38,9 @@ Live DigiKey and Mouser lookups require `DIGIKEY_CLIENT_ID` / `DIGIKEY_CLIENT_SE
 Risk output uses `risk_score` (0–1) and `validated: false`. It is a hand-authored heuristic, not a trained model or calibrated stock-out probability. Validating a predictive model requires representative procurement and stock-out outcomes; these are not bundled. Alternative-part similarity does not establish pin or electrical compatibility. Engineering qualification is required.
 
 The redesigned workspace follows the supplied paper-and-ink reference, with responsive navigation, mobile sourcing result cards, keyboard focus states, and reduced-motion support.
+
+## Platform engineering workflow
+
+The protected Rust workspace now provides tenant-scoped BOM storage, enforced owner/engineer/viewer roles, revision checks, audit records, and durable enrichment jobs. Start with `make doctor` and `make dev`. See [the platform guide](docs/platform/README.md), [interview demonstration](docs/platform/DEMO.md), and [verification evidence](docs/platform/EVIDENCE.md). The public demo workspace is read-only; register an account for a private editable workspace.
+
+Runtime configuration must include a dedicated PostgreSQL `DATABASE_URL` and an authentication secret of at least 32 characters (`AUTH_SECRET`, or `CORE_AUTH_SECRET` plus NextAuth configuration). `/api/health` returns 503 until protected storage is ready. Local development creates isolated configuration automatically.

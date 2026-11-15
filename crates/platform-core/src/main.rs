@@ -8,7 +8,7 @@ use actix_web::{middleware, web, App, HttpServer};
 use nexus_platform_core::ai_copilot::AiCopilotEngine;
 use nexus_platform_core::api::{self, AppState};
 use nexus_platform_core::authz::{PolicyEngine, PolicySet};
-use nexus_platform_core::telemetry;
+use nexus_platform_core::{telemetry, workspace};
 use std::env;
 use std::sync::Arc;
 
@@ -42,9 +42,45 @@ async fn main() -> std::io::Result<()> {
 
     tracing::info!(%bind_addr, "listening");
 
+    let workspace_state = match (
+        env::var("DATABASE_URL"),
+        env::var("CORE_AUTH_SECRET")
+            .or_else(|_| env::var("AUTH_SECRET"))
+            .or_else(|_| env::var("NEXTAUTH_SECRET")),
+    ) {
+        (Ok(url), Ok(secret)) => match workspace::WorkspaceState::connect(
+            &url,
+            &secret,
+            env::var("GO_INGEST_URL").unwrap_or_else(|_| "http://127.0.0.1:8090".into()),
+        )
+        .await
+        {
+            Ok(state) => Some(web::Data::new(state)),
+            Err(_) => {
+                tracing::error!(
+                    "Workspace initialization failed; protected operations will fail closed"
+                );
+                None
+            }
+        },
+        _ => {
+            tracing::warn!("Workspace storage or signing secret not configured");
+            None
+        }
+    };
+    let workers = workspace_state
+        .as_ref()
+        .map(|s| workspace::jobs::start_workers(s.get_ref().clone()))
+        .unwrap_or_default();
+
     // 3. Start Actix-Web HTTP Server
-    HttpServer::new(move || {
-        App::new()
+    let result = HttpServer::new(move || {
+        let mut app = App::new();
+        if let Some(state) = &workspace_state {
+            app = app.app_data(state.clone());
+        }
+        app.configure(workspace::configure)
+            .wrap(telemetry::RequestTelemetry)
             .app_data(app_state.clone())
             .wrap(middleware::Logger::default())
             .wrap(middleware::Compress::default())
@@ -96,7 +132,12 @@ async fn main() -> std::io::Result<()> {
                 web::post().to(api::polyglot_bom_enrich),
             )
     })
+    .shutdown_timeout(10)
     .bind(&bind_addr)?
     .run()
-    .await
+    .await;
+    for worker in workers {
+        worker.abort();
+    }
+    result
 }

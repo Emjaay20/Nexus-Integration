@@ -158,6 +158,13 @@ export const pool = new Proxy({} as PgPool, {
 });
 
 export const db = {
+    transaction: async <T>(work: (client: Pick<PgPool, 'query'>) => Promise<T>): Promise<T> => {
+        await ensureSchema();
+        const client = await (getPool() as PgPool).connect();
+        try { await client.query('BEGIN'); const result = await work(client as unknown as Pick<PgPool, 'query'>); await client.query('COMMIT'); return result; }
+        catch(error) { await client.query('ROLLBACK'); throw error; }
+        finally { client.release(); }
+    },
     query: async (text: string, params?: any[]): Promise<{ rows: any[]; rowCount: number | null }> => {
         await ensureSchema();
         return (getPool() as any).query(text, params);

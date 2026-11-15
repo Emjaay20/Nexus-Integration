@@ -1,15 +1,14 @@
+"use client";
 
-'use client';
-
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FileUpload } from './FileUpload';
-import { ColumnMapper, ColumnMapping } from './ColumnMapper';
-import { ValidationView } from './ValidationView';
-import { ExportView } from './ExportView';
-import { RecentImports } from './RecentImports';
-import { validateData, ValidatedRow } from '@/lib/validator';
-import { FileSpreadsheet, ArrowRight } from 'lucide-react';
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FileUpload } from "./FileUpload";
+import { ColumnMapper, ColumnMapping } from "./ColumnMapper";
+import { ValidationView } from "./ValidationView";
+import { ExportView } from "./ExportView";
+import { RecentImports } from "./RecentImports";
+import { validateData, ValidatedRow } from "@/lib/validator";
+import { FileSpreadsheet, ArrowRight } from "lucide-react";
 
 /* 
   Steps:
@@ -20,218 +19,285 @@ import { FileSpreadsheet, ArrowRight } from 'lucide-react';
 */
 
 export function ImporterWizard() {
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-    const [file, setFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [file, setFile] = useState<File | null>(null);
 
-    const [parsedData, setParsedData] = useState<any[]>([]);
-    const [headers, setHeaders] = useState<string[]>([]);
-    const [mapping, setMapping] = useState<ColumnMapping | null>(null);
-    const [validatedRows, setValidatedRows] = useState<ValidatedRow[]>([]);
-    const [isParsing, setIsParsing] = useState(false);
-    const [isValidating, setIsValidating] = useState(false);
+  const [parsedData, setParsedData] = useState<any[]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<ColumnMapping | null>(null);
+  const [validatedRows, setValidatedRows] = useState<ValidatedRow[]>([]);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
-    const handleMappingConfirm = async (newMapping: ColumnMapping) => {
-        setMapping(newMapping);
-        setIsValidating(true);
+  const handleMappingConfirm = async (newMapping: ColumnMapping) => {
+    setMapping(newMapping);
+    setIsValidating(true);
 
-        const results = await validateData(parsedData, newMapping);
-        setValidatedRows(results);
-        setIsValidating(false);
-        setStep(3);
+    const results = await validateData(parsedData, newMapping);
+    setValidatedRows(results);
+    setIsValidating(false);
+    setStep(3);
 
-        // Fire real-time event to Integration Hub
-        const validCount = results.filter(r => r.status === 'valid').length;
-        const errorCount = results.filter(r => r.status === 'invalid').length;
-        try {
-            await fetch('/api/integrations/webhook/trigger', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    event: 'bom.validated',
-                    source: 'bom-importer',
-                    payload: {
-                        fileName: file?.name,
-                        totalRows: results.length,
-                        validRows: validCount,
-                        errorRows: errorCount,
-                        status: errorCount > 0 ? 'partial' : 'clean'
-                    }
-                })
-            });
-        } catch (err) {
-            console.error('Failed to notify Integration Hub:', err);
-        }
+    // Fire real-time event to Integration Hub
+    const validCount = results.filter((r) => r.status === "valid").length;
+    const errorCount = results.filter((r) => r.status === "invalid").length;
+    try {
+      await fetch("/api/integrations/webhook/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "bom.validated",
+          source: "bom-importer",
+          payload: {
+            fileName: file?.name,
+            totalRows: results.length,
+            validRows: validCount,
+            errorRows: errorCount,
+            status: errorCount > 0 ? "partial" : "clean",
+          },
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to notify Integration Hub:", err);
+    }
 
-        // Persist the BOM import to the database
-        try {
-            const warningCount = results.filter(r => r.status === 'warning').length;
-            await fetch('/api/bom', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    filename: file?.name || 'unknown.csv',
-                    totalRows: results.length,
-                    validRows: validCount,
-                    invalidRows: errorCount,
-                    warningRows: warningCount,
-                    data: results.slice(0, 100).map(r => r.mapped), // Store first 100 rows
-                })
-            });
-        } catch (err) {
-            console.error('Failed to persist BOM import:', err);
-        }
-    };
+    // Persist the BOM import to the database
+    try {
+      const warningCount = results.filter((r) => r.status === "warning").length;
+      const saved = await fetch("/api/bom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file?.name || "unknown.csv",
+          totalRows: results.length,
+          validRows: validCount,
+          invalidRows: errorCount,
+          warningRows: warningCount,
+          data: results
+            .filter((r) => r.status !== "invalid")
+            .map((r) => r.mapped),
+        }),
+      });
+      if (!saved.ok) {
+        const result = await saved.json();
+        throw new Error(result.error || "BOM was not saved");
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "BOM was not saved.");
+      console.error("Failed to persist BOM import:", err);
+    }
+  };
 
-    const handleFileSelect = async (uploadedFile: File) => {
-        setUploadError(null);
-        setFile(uploadedFile);
-        setIsParsing(true);
-        setStep(2); // Move to processing step immediately to show loading UI
+  const handleFileSelect = async (uploadedFile: File) => {
+    setUploadError(null);
+    setFile(uploadedFile);
+    setIsParsing(true);
+    setStep(2); // Move to processing step immediately to show loading UI
 
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
+    const formData = new FormData();
+    formData.append("file", uploadedFile);
 
-        try {
-            const response = await fetch('/api/bom/upload', {
-                method: 'POST',
-                body: formData,
-            });
+    try {
+      const response = await fetch("/api/bom/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-            if (!response.ok) {
-                const body = await response.json();
-                throw new Error(body.error || 'Failed to parse file');
-            }
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error(body.error || "Failed to parse file");
+      }
 
-            const result = await response.json();
+      const result = await response.json();
 
-            setParsedData(result.data);
-            setHeaders(result.headers || Object.keys(result.data[0] || {}));
+      setParsedData(result.data);
+      setHeaders(result.headers || Object.keys(result.data[0] || {}));
 
-            setIsParsing(false);
-        } catch (error) {
-            console.error("Parsing failed", error);
-            setIsParsing(false);
-            setUploadError(error instanceof Error ? error.message : 'Unable to parse this file.');
-            setStep(1);
-        }
-    };
+      setIsParsing(false);
+    } catch (error) {
+      console.error("Parsing failed", error);
+      setIsParsing(false);
+      setUploadError(
+        error instanceof Error ? error.message : "Unable to parse this file.",
+      );
+      setStep(1);
+    }
+  };
 
-    return (
-        <div className="w-full max-w-5xl mx-auto">
-            {uploadError && <p className="note error" role="alert" style={{marginBottom:20}}>{uploadError}</p>}
-            {/* Progress Indicators (Simple for now) */}
-            <div className="flex items-center justify-between mb-10 px-4 max-w-2xl mx-auto">
-                <StepIndicator number={1} label="Upload" active={step >= 1} current={step === 1} />
-                <Connector active={step >= 2} />
-                <StepIndicator number={2} label="Map Columns" active={step >= 2} current={step === 2} />
-                <Connector active={step >= 3} />
-                <StepIndicator number={3} label="Validate" active={step >= 3} current={step === 3} />
-                <Connector active={step >= 4} />
-                <StepIndicator number={4} label="Export" active={step >= 4} current={step === 4} />
+  return (
+    <div className="w-full max-w-5xl mx-auto">
+      {uploadError && (
+        <p className="note error" role="alert" style={{ marginBottom: 20 }}>
+          {uploadError}
+        </p>
+      )}
+      {/* Progress Indicators (Simple for now) */}
+      <div className="flex items-center justify-between mb-10 px-4 max-w-2xl mx-auto">
+        <StepIndicator
+          number={1}
+          label="Upload"
+          active={step >= 1}
+          current={step === 1}
+        />
+        <Connector active={step >= 2} />
+        <StepIndicator
+          number={2}
+          label="Map Columns"
+          active={step >= 2}
+          current={step === 2}
+        />
+        <Connector active={step >= 3} />
+        <StepIndicator
+          number={3}
+          label="Validate"
+          active={step >= 3}
+          current={step === 3}
+        />
+        <Connector active={step >= 4} />
+        <StepIndicator
+          number={4}
+          label="Export"
+          active={step >= 4}
+          current={step === 4}
+        />
+      </div>
+
+      {/* Step Content */}
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="flex flex-col items-center justify-center min-h-[320px]"
+          >
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                Import your Bill of Materials
+              </h2>
+              <p className="text-slate-500 max-w-md mx-auto">
+                Upload your raw BOM file (CSV or Excel) and we'll help you
+                clean, validate, and standardize it.
+              </p>
+            </div>
+            <FileUpload onFileSelect={handleFileSelect} />
+
+            <button
+              className="btn btn-secondary"
+              style={{ marginTop: 16 }}
+              onClick={async () => {
+                try {
+                  const r = await fetch("/sample-bom.csv");
+                  if (!r.ok) throw new Error("Sample file unavailable");
+                  const blob = await r.blob();
+                  await handleFileSelect(
+                    new File([blob], "sample-bom.csv", { type: "text/csv" }),
+                  );
+                } catch {
+                  setUploadError(
+                    "Could not load the sample. Please upload a file.",
+                  );
+                }
+              }}
+            >
+              Use sample BOM
+            </button>
+            {/* Quick Template Download */}
+            <div className="mt-12 flex gap-4 text-sm text-slate-400">
+              <a
+                href="/sample-bom.csv"
+                download
+                className="flex items-center gap-1 hover:text-blue-600 cursor-pointer transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4" /> Download Sample CSV
+              </a>
             </div>
 
-            {/* Step Content */}
-            <AnimatePresence mode="wait">
-                {step === 1 && (
-                    <motion.div
-                        key="step1"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="flex flex-col items-center justify-center min-h-[320px]"
-                    >
-                        <div className="text-center mb-8">
-                            <h2 className="text-3xl font-bold text-slate-900 mb-2">Import your Bill of Materials</h2>
-                            <p className="text-slate-500 max-w-md mx-auto">
-                                Upload your raw BOM file (CSV or Excel) and we'll help you clean, validate, and standardize it.
-                            </p>
-                        </div>
-                        <FileUpload onFileSelect={handleFileSelect} />
+            {/* Recent Imports */}
+            <div className="mt-8 w-full max-w-lg">
+              <RecentImports />
+            </div>
+          </motion.div>
+        )}
 
-                        <button className="btn btn-secondary" style={{marginTop:16}} onClick={async () => { try { const r=await fetch('/sample-bom.csv'); if(!r.ok) throw new Error('Sample file unavailable'); const blob=await r.blob(); await handleFileSelect(new File([blob], 'sample-bom.csv', {type:'text/csv'})); } catch {setUploadError('Could not load the sample. Please upload a file.');} }}>Use sample BOM</button>
-                        {/* Quick Template Download */}
-                        <div className="mt-12 flex gap-4 text-sm text-slate-400">
-                            <a
-                                href="/sample-bom.csv"
-                                download
-                                className="flex items-center gap-1 hover:text-blue-600 cursor-pointer transition-colors"
-                            >
-                                <FileSpreadsheet className="w-4 h-4" /> Download Sample CSV
-                            </a>
-                        </div>
+        {step === 2 && (
+          <ColumnMapper
+            headers={headers}
+            data={parsedData}
+            onConfirm={handleMappingConfirm}
+            onBack={() => {
+              setStep(1);
+              setFile(null);
+            }}
+          />
+        )}
 
-                        {/* Recent Imports */}
-                        <div className="mt-8 w-full max-w-lg">
-                            <RecentImports />
-                        </div>
-                    </motion.div>
-                )}
+        {step === 3 && (
+          <ValidationView
+            rows={validatedRows}
+            onContinue={() => setStep(4)}
+            onBack={() => setStep(2)}
+          />
+        )}
 
-                {step === 2 && (
-                    <ColumnMapper
-                        headers={headers}
-                        data={parsedData}
-                        onConfirm={handleMappingConfirm}
-                        onBack={() => {
-                            setStep(1);
-                            setFile(null);
-                        }}
-                    />
-                )}
-
-                {step === 3 && (
-                    <ValidationView
-                        rows={validatedRows}
-                        onContinue={() => setStep(4)}
-                        onBack={() => setStep(2)}
-                    />
-                )}
-
-                {step === 4 && (
-                    <ExportView
-                        rows={validatedRows}
-                        onReset={() => {
-                            setStep(1);
-                            setFile(null);
-                            setParsedData([]);
-                            setMapping(null);
-                            setValidatedRows([]);
-                        }}
-                    />
-                )}
-            </AnimatePresence>
-        </div>
-    );
+        {step === 4 && (
+          <ExportView
+            rows={validatedRows}
+            onReset={() => {
+              setStep(1);
+              setFile(null);
+              setParsedData([]);
+              setMapping(null);
+              setValidatedRows([]);
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
-function StepIndicator({ number, label, active, current }: { number: number, label: string, active: boolean, current: boolean }) {
-    return (
-        <div className="flex flex-col items-center gap-2 relative z-10">
-            <div
-                className={`
+function StepIndicator({
+  number,
+  label,
+  active,
+  current,
+}: {
+  number: number;
+  label: string;
+  active: boolean;
+  current: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 relative z-10">
+      <div
+        className={`
           w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300
-          ${current ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110' : active ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'}
+          ${current ? "bg-blue-600 text-white ring-4 ring-blue-100 scale-110" : active ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-400"}
         `}
-            >
-                {active && !current ? (
-                    // Checkmark logic could go here, keeping it simple
-                    number
-                ) : number}
-            </div>
-            <span className={`text-[10px] sm:text-xs font-medium absolute -bottom-6 w-16 sm:w-24 text-center transition-colors ${active || current ? 'text-slate-700' : 'text-slate-400'}`}>
-                {label}
-            </span>
-        </div>
-    );
+      >
+        {active && !current
+          ? // Checkmark logic could go here, keeping it simple
+            number
+          : number}
+      </div>
+      <span
+        className={`text-[10px] sm:text-xs font-medium absolute -bottom-6 w-16 sm:w-24 text-center transition-colors ${active || current ? "text-slate-700" : "text-slate-400"}`}
+      >
+        {label}
+      </span>
+    </div>
+  );
 }
 
 function Connector({ active }: { active: boolean }) {
-    return (
-        <div className="flex-1 h-0.5 bg-slate-200 mx-2 relative">
-            <div
-                className={`absolute inset-0 bg-blue-600 transition-all duration-500 ease-in-out ${active ? 'w-full' : 'w-0'}`}
-            />
-        </div>
-    );
+  return (
+    <div className="flex-1 h-0.5 bg-slate-200 mx-2 relative">
+      <div
+        className={`absolute inset-0 bg-blue-600 transition-all duration-500 ease-in-out ${active ? "w-full" : "w-0"}`}
+      />
+    </div>
+  );
 }

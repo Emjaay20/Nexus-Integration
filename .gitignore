@@ -27,3 +27,8 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 .gemini/
+
+# Local platform state and credentials
+.nexus/
+
+__pycache__/

@@ -4,10 +4,16 @@ set -eu
 pids=""
 cleanup() { kill $pids 2>/dev/null || true; }
 trap cleanup EXIT
-trap 'exit 0' TERM INT
+shutdown() {
+    trap '' TERM INT
+    cleanup
+    for pid in $pids; do wait "$pid" 2>/dev/null || true; done
+    exit 0
+}
+trap shutdown TERM INT
 
 echo "[nexus-entrypoint] Starting distributor ingestion on :8090"
-INGEST_PORT=8090 /usr/local/bin/nexus-ingest &
+INGEST_HOST=127.0.0.1 INGEST_PORT=8090 /usr/local/bin/nexus-ingest &
 pids="$pids $!"
 
 echo "[nexus-entrypoint] Starting platform core on :8088"
@@ -20,7 +26,7 @@ export GO_INGEST_URL="http://127.0.0.1:8090"
 export HOSTNAME="0.0.0.0"
 export PORT="${PORT:-3000}"
 echo "[nexus-entrypoint] Starting workspace on :$PORT"
-node node_modules/next/dist/bin/next start &
+node server.js &
 pids="$pids $!"
 
 # Stop the container if any service exits, so the host can restart the full stack.

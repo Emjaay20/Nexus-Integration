@@ -1,50 +1,39 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { auth } from '@/auth';
-
-export const dynamic = 'force-dynamic';
-
+import { forwardWorkspace } from "@/lib/core-workspace";
+export const dynamic = "force-dynamic";
+// Compatibility adapter for the importer. Rust validates all rows and derives ownership.
 export async function POST(request: Request) {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        const userId = session.user.id;
-
-        const body = await request.json();
-        const { filename, totalRows, validRows, invalidRows, warningRows, data } = body;
-
-        const result = await db.query(
-            `INSERT INTO bom_imports (user_id, filename, total_rows, valid_rows, invalid_rows, warning_rows, data)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING *`,
-            [userId, filename, totalRows, validRows, invalidRows || 0, warningRows || 0, JSON.stringify(data)]
-        );
-
-        return NextResponse.json(result.rows[0]);
-    } catch (error) {
-        console.error('BOM Save Error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  return forwardWorkspace("boms", request, {
+    method: "POST",
+    body: { name: body.filename, items: body.data },
+  });
 }
-
-export async function GET() {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        const userId = session.user.id;
-
-        const result = await db.query(
-            'SELECT * FROM bom_imports WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10',
-            [userId]
-        );
-
-        return NextResponse.json(result.rows);
-    } catch (error) {
-        console.error('BOM Fetch Error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
+export async function GET(request: Request) {
+  const response = await forwardWorkspace("boms", request);
+  if (!response.ok) return response;
+  const boms = await response.json();
+  return Response.json(
+    boms.map(
+      (bom: {
+        id: string;
+        name: string;
+        item_count: number;
+        created_at: string;
+      }) => ({
+        id: bom.id,
+        filename: bom.name,
+        total_rows: bom.item_count,
+        valid_rows: bom.item_count,
+        invalid_rows: 0,
+        warning_rows: 0,
+        created_at: bom.created_at,
+      }),
+    ),
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

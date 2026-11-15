@@ -1,10 +1,12 @@
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+# Apply only after provisioning the nexus-runtime Secret and setting an approved image digest.
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: platform-core-prod
+  name: nexus
   namespace: platform-system
 spec:
   interval: 5m
+  timeout: 3m
   chart:
     spec:
       chart: ./deploy/helm
@@ -12,10 +14,19 @@ spec:
         kind: GitRepository
         name: nexus-integration
         namespace: flux-system
+      reconcileStrategy: Revision
       interval: 1m
+  install:
+    remediation:
+      retries: 2
+  upgrade:
+    remediation:
+      retries: 2
+      strategy: rollback
   values:
-    replicaCount: 5
-    resources:
-      requests:
-        cpu: 500m
-        memory: 1Gi
+    replicaCount: 2
+    image:
+      repository: ghcr.io/emjaay20/nexus-integration
+      # Promotion replaces this placeholder with the digest of the tested image.
+      digest: "sha256:REPLACE_WITH_TESTED_DIGEST"
+    runtimeSecret: nexus-runtime

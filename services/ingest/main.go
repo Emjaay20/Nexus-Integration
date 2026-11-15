@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -952,6 +954,28 @@ func (s *IngestServer) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *IngestServer) handleEnrichBatch(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	requestID := r.Header.Get("X-Request-ID")
+	validID := len(requestID) == 36
+	for _, c := range requestID {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || c == '-') {
+			validID = false
+		}
+	}
+	if !validID {
+		b := make([]byte, 16)
+		if _, err := rand.Read(b); err == nil {
+			requestID = hex.EncodeToString(b)
+		} else {
+			requestID = "unavailable"
+		}
+	}
+	w.Header().Set("X-Request-ID", requestID)
+	defer func() {
+		slog.Info("enrichment request completed", "request_id", requestID, "elapsed_ms", time.Since(start).Milliseconds())
+	}()
+	r.Body = http.MaxBytesReader(w, r.Body, 1_000_000)
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -1009,7 +1033,11 @@ func main() {
 	}
 
 	srv := NewIngestServer()
-	addr := "0.0.0.0:" + port
+	host := os.Getenv("INGEST_HOST")
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	addr := host + ":" + port
 	slog.Info("starting nexus-go-ingest service", "addr", addr)
 	if err := http.ListenAndServe(addr, srv.Routes()); err != nil {
 		slog.Error("server exited", "err", err)
