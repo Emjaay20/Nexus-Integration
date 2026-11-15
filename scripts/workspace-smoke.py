@@ -48,8 +48,15 @@ status,_=call(a,'/api/workspace/members/'+bc['actor']['user_id'],'PUT',{'role':'
 status,_=call(b,path,'PUT',body|{'revision':2});assert status==403
 status,events=call(a,'/api/workspace/audit');assert status==200 and any(e['decision']=='deny' for e in events)
 status,summary=call(a,'/api/workspace/boms');assert all('items' not in row and row['item_count']==2 for row in summary)
+# The historical demo UUID has zero version bits and must still be a read-only identity.
+demo=session();_,csrf=call(demo,'/api/auth/csrf')
+encoded=urllib.parse.urlencode({'email':'demo@nexus.dev','password':'demo1234','csrfToken':csrf['csrfToken'],'callbackUrl':base+'/workspace','json':'true'}).encode()
+demo.open(urllib.request.Request(base+'/api/auth/callback/credentials',data=encoded,headers={'Content-Type':'application/x-www-form-urlencoded','X-Auth-Return-Redirect':'1'}),timeout=20)
+status,demo_context=call(demo,'/api/workspace/context');assert status==200 and demo_context['actor']['role']=='viewer',(status,demo_context)
+status,demo_boms=call(demo,'/api/workspace/boms');assert status==200 and demo_boms
+status,_=call(demo,'/api/workspace/boms','POST',body);assert status==403
 root=pathlib.Path('.nexus');root.mkdir(exist_ok=True)
 fd=os.open(root/'smoke-account.json',os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
 with os.fdopen(fd,'w') as file:json.dump(credentials,file)
-result={'tenant_isolation':'passed','authenticated_identity':'passed','role_enforcement_and_revocation':'passed','revision_conflict':'passed','durable_job':'passed','idempotency':'passed','audit':'passed','bounded_list_payloads':'passed','bom_id':bom['id'],'request_id':job['request_id']}
+result={'readonly_demo':'passed','tenant_isolation':'passed','authenticated_identity':'passed','role_enforcement_and_revocation':'passed','revision_conflict':'passed','durable_job':'passed','idempotency':'passed','audit':'passed','bounded_list_payloads':'passed','bom_id':bom['id'],'request_id':job['request_id']}
 (root/'evidence').mkdir(exist_ok=True);(root/'evidence/workspace-smoke.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))

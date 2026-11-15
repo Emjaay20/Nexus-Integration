@@ -1,5 +1,10 @@
 import { createHmac } from "node:crypto";
 
+// Persisted PostgreSQL UUIDs include the legacy demo ID, whose version bits are zero.
+export function isWorkspaceUserId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export function createCoreAssertion(
   userId: string,
   secret: string,

@@ -6,6 +6,8 @@ import { RefreshCw } from 'lucide-react';
 import { pusherClient } from '@/lib/pusher';
 import { useSession } from 'next-auth/react';
 
+const realtimeConfigured = Boolean(process.env.NEXT_PUBLIC_PUSHER_KEY && process.env.NEXT_PUBLIC_PUSHER_CLUSTER);
+
 export function LiveActivityFeedWrapper({
     children,
     userId,
@@ -20,14 +22,13 @@ export function LiveActivityFeedWrapper({
     const activeUserId = userId || session?.user?.id;
 
     useEffect(() => {
-        if (!activeUserId) return;
+        if (!activeUserId || !realtimeConfigured) return;
 
         // Enforce per-user private Pusher channel
         const channelName = `private-user-${activeUserId}`;
         const channel = pusherClient.subscribe(channelName);
 
-        channel.bind('new-activity', (data: unknown) => {
-            console.log('Secure real-time event received:', data);
+        channel.bind('new-activity', () => {
             router.refresh();
             setIsRefreshing(true);
             setTimeout(() => setIsRefreshing(false), 800);
@@ -49,7 +50,7 @@ export function LiveActivityFeedWrapper({
             <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
                 <span className="text-[11px] font-mono font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    LIVE FEED
+                    {realtimeConfigured ? 'ACTIVITY FEED' : 'MANUAL REFRESH'}
                 </span>
                 <button
                     onClick={handleRefresh}

@@ -10,7 +10,7 @@ const source = readFileSync(
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext },
 }).outputText;
-const { createCoreAssertion } = await import(
+const { createCoreAssertion, isWorkspaceUserId } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
 );
 test("core assertions contain only subject, audience, and a short lifetime", () => {
@@ -33,4 +33,11 @@ test("core assertions contain only subject, audience, and a short lifetime", () 
   assert.throws(() =>
     createCoreAssertion(subject, "nexus-build-placeholder-secret-32-chars"),
   );
+});
+
+test("persisted identity validation accepts legacy demo and generated UUIDs", () => {
+  assert.equal(isWorkspaceUserId("00000000-0000-0000-0000-000000000001"), true);
+  assert.equal(isWorkspaceUserId("11111111-1111-4111-8111-111111111111"), true);
+  for (const value of ["owner", "", "11111111-1111-4111-8111-111111111111/other"])
+    assert.equal(isWorkspaceUserId(value), false);
 });

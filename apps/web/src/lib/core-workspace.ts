@@ -1,7 +1,7 @@
 import "server-only";
 import { allowsMutation } from "@/lib/request-origin";
 import { randomUUID } from "node:crypto";
-import { createCoreAssertion } from "@/lib/core-assertion";
+import { createCoreAssertion, isWorkspaceUserId } from "@/lib/core-assertion";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
@@ -67,7 +67,7 @@ export async function forwardWorkspace(
       { status: 403, headers },
     );
   const session = await auth();
-  if (!session?.user?.id || !uuid.test(session.user.id))
+  if (!session?.user?.id || !isWorkspaceUserId(session.user.id))
     return Response.json(
       { error: "Sign in to access this workspace" },
       { status: 401, headers },

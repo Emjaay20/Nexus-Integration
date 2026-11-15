@@ -8,7 +8,7 @@ Verified locally on an arm64 developer machine using the production container. T
 - Rust unit/API tests: 25 passed.
 - PostgreSQL isolation, authorization, concurrency, recovery, fencing, cancellation, retry and queue-capacity tests: 7 passed, using random schemas in the disposable `nexus_platform_test` database.
 - Go race tests: passed.
-- Web unit tests: 10 passed.
+- Web unit tests: 11 passed.
 - Production standalone web/container build: passed.
 - MCP stdio protocol, read-only tools, errors and secret redaction: passed.
 - Full authenticated browser-session/BFF/Rust/PostgreSQL/Go smoke: passed against both isolated development services and the production container. Covers separate tenants, forged identities, role revocation, stale edits, idempotency, durable results, audit and bounded lists.
@@ -35,3 +35,5 @@ The actual Helm chart passed in a unique disposable Kind v0.32.0 cluster (Kubern
 ## Release limits
 
 The existing Aether deployment uses its own Git builder and may be unavailable during builds. Kubernetes verification applies to the actual Helm chart in a disposable local Kind cluster, not a provisioned production Kubernetes account. Flux promotion requires real cluster credentials and runtime secrets. Supplier credentials are absent from local verification, so sourcing results explicitly retain reference-data provenance. Request correlation is implemented; an OpenTelemetry exporter is not. AI/model dependencies have not been added.
+
+Post-deployment verification exposed two legacy edge cases: an unconfigured optional Pusher client and the historical demo UUID. Both were fixed; a regression test and full local read-only demo check now cover the demo identity.
