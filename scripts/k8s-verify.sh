@@ -12,8 +12,21 @@ for tool in docker kind kubectl helm; do command -v "$tool" >/dev/null || { echo
 mkdir -p "$ROOT/.nexus/evidence"
 cleanup() { kind delete cluster --name "$CLUSTER" >/dev/null 2>&1 || true; rm -f "$VERIFY_KUBECONFIG"; }
 trap cleanup EXIT
+# Resolve fixtures on the host first; Kind must not depend on a second registry pull
+# while its short application-readiness timeout is running.
+for fixture in postgres:16-alpine curlimages/curl:8.12.1; do
+    docker image inspect "$fixture" >/dev/null 2>&1 || docker pull "$fixture"
+done
 kind create cluster --name "$CLUSTER" --wait 90s
 kind load docker-image "$IMAGE" --name "$CLUSTER"
+PLATFORM="$(docker image inspect "$IMAGE" --format '{{.Os}}/{{.Architecture}}')"
+# Docker may keep a multi-platform fixture index with only this host's layers.
+# Import only the tested platform, rather than asking ctr for missing platforms.
+for node in $(kind get nodes --name "$CLUSTER"); do
+    for fixture in postgres:16-alpine curlimages/curl:8.12.1; do
+        docker image save "$fixture" | docker exec -i "$node" ctr --namespace=k8s.io images import --platform "$PLATFORM" --digests --snapshotter=overlayfs -
+    done
+done
 kubectl --context "$CONTEXT" create namespace "$NAMESPACE"
 # Local fixture credentials only. Production secrets are never copied into this cluster.
 kubectl --context "$CONTEXT" -n "$NAMESPACE" create secret generic nexus-runtime --from-literal=DATABASE_URL=postgresql://nexus_verify:nexus_verify@postgres:5432/nexus_verify --from-literal=AUTH_SECRET=kind-fixture-only-more-than-thirty-two-bytes --from-literal=CORE_AUTH_SECRET=kind-fixture-only-more-than-thirty-two-bytes --from-literal=AUTH_TRUST_HOST=true
@@ -30,6 +43,7 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
           env:
             - {name: POSTGRES_USER, value: nexus_verify}
             - {name: POSTGRES_PASSWORD, value: nexus_verify}
