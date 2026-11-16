@@ -62,6 +62,23 @@ type Job = {
   result: { results: Part[]; summary?: JobSummaryStats } | null;
 };
 
+type SourcingBrief = {
+  project_name: string;
+  overall_risk_score: number;
+  risk_level: string;
+  single_source_count: number;
+  obsolete_or_nrnd_count: number;
+  max_lead_time_weeks: number;
+  lead_time_bottlenecks: {
+    mpn: string;
+    lead_time_weeks: number;
+    impact: string;
+    recommended_action: string;
+  }[];
+  strategic_recommendations: string[];
+  estimated_cost_reduction_opportunity_pct: number;
+  analyzed_by: string;
+};
 type Member = { user_id: string; role: string };
 type Audit = {
   id: string;
@@ -123,6 +140,7 @@ export default function Workspace() {
   const [memberId, setMemberId] = useState("");
   const [memberRole, setMemberRole] = useState("viewer");
   const [resultJob, setResultJob] = useState<Job | null>(null);
+  const [brief, setBrief] = useState<SourcingBrief | null>(null);
   const requestKey = useRef<{
     bom: string;
     revision: number;
@@ -508,6 +526,7 @@ export default function Workspace() {
                           className="btn btn-secondary btn-sm"
                           onClick={() =>
                             act(async () => {
+                              setBrief(null);
                               setResultJob(await api<Job>(`jobs/${job.id}`));
                             })
                           }
@@ -538,7 +557,67 @@ export default function Workspace() {
               )}
               {resultJob?.result && (
                 <section className="result-section">
-                  <h3>Results · saved revision {resultJob.bom_revision}</h3>
+                  <div className="section-head">
+                    <h3>Results · saved revision {resultJob.bom_revision}</h3>
+                    {resultJob.state === "completed" && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        disabled={busy}
+                        onClick={() =>
+                          act(async () => {
+                            const report = await api<SourcingBrief>(
+                              `jobs/${resultJob.id}/brief`,
+                              "POST",
+                              {},
+                            );
+                            setBrief(report);
+                          })
+                        }
+                      >
+                        {busy ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <ArrowRight size={14} />
+                        )}{" "}
+                        Generate AI Sourcing Brief
+                      </button>
+                    )}
+                  </div>
+                  {brief && (
+                    <div className="note" style={{ marginTop: 16 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <strong>
+                          Sourcing Risk Brief · {brief.risk_level} (
+                          {brief.overall_risk_score}/100)
+                        </strong>
+                        <span className="sub">{brief.analyzed_by}</span>
+                      </div>
+                      {brief.strategic_recommendations.length > 0 && (
+                        <ul style={{ marginTop: 10, paddingLeft: 18 }}>
+                          {brief.strategic_recommendations.map((rec, idx) => (
+                            <li key={idx} style={{ marginBottom: 4 }}>
+                              {rec}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {brief.lead_time_bottlenecks.length > 0 && (
+                        <p className="sub" style={{ marginTop: 8 }}>
+                          Bottlenecks:{" "}
+                          {brief.lead_time_bottlenecks
+                            .map((b) => `${b.mpn} (${b.lead_time_weeks} wks)`)
+                            .join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {resultJob.result.summary && (
                     <div className="metric-row" style={{ marginTop: 16 }}>
                       <div className="metric">

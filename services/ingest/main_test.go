@@ -149,3 +149,26 @@ func TestFailedLiveLookupDoesNotPretendToBeLive(t *testing.T) {
 		t.Fatal("lookup failure must be visible")
 	}
 }
+
+func TestNexarGraphQLReturnsLiveMultiSellerOffers(t *testing.T) {
+	s := NewIngestServer()
+	s.digikeyClientID = ""
+	s.digikeySecret = ""
+	s.mouserApiKey = ""
+	s.nexarClientID = "nexar-client"
+	s.nexarSecret = "nexar-secret"
+	s.httpClient = &http.Client{Transport: testTransport(func(r *http.Request) (*http.Response, error) {
+		body := `{"access_token":"nexar-token"}`
+		if r.URL.Host == "api.nexar.com" {
+			body = `{"data":{"supSearchMpn":{"results":[{"part":{"mpn":"STM32F401RET6","shortDescription":"ARM Cortex-M4 MCU","manufacturer":{"name":"STMicroelectronics"},"sellers":[{"company":{"name":"Arrow Electronics"},"offers":[{"sku":"ARW-STM32","inventoryLevel":1200,"moq":1,"prices":[{"quantity":1,"price":5.10,"currency":"USD"},{"quantity":100,"price":4.12,"currency":"USD"}]}]},{"company":{"name":"DigiKey"},"offers":[{"sku":"497-14362-1-ND","inventoryLevel":8420,"moq":1,"prices":[{"quantity":100,"price":4.38,"currency":"USD"}]}]}]}}]}}}`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}
+	part := s.enrichSinglePart(context.Background(), "STM32F401RET6", 100)
+	if part.DataSource != "live" || part.BestUnitPriceAtQty != 4.12 || part.BestDistributor != "Arrow Electronics" {
+		t.Fatalf("incorrect nexar live quote: %+v", part)
+	}
+	if part.DistributorCount != 2 || part.Offers[0].Source != "nexar_api_live" {
+		t.Fatalf("expected 2 live sellers from nexar, got %+v", part)
+	}
+}

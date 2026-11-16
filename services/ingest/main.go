@@ -165,11 +165,8 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	warnings := []string{}
-	if s.mouserApiKey == "" {
-		warnings = append(warnings, "Mouser credentials not configured")
-	}
-	if s.digikeyClientID == "" || s.digikeySecret == "" {
-		warnings = append(warnings, "DigiKey credentials not configured")
+	if s.mouserApiKey == "" && (s.digikeyClientID == "" || s.digikeySecret == "") && (s.nexarClientID == "" || s.nexarSecret == "") {
+		warnings = append(warnings, "Live distributor credentials not configured")
 	}
 
 	// 1. Concurrent live distributor queries when API keys are configured
@@ -201,6 +198,25 @@ func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targ
 			defer mu.Unlock()
 			if err != nil {
 				warnings = append(warnings, "DigiKey lookup failed; live data unavailable")
+			} else {
+				for _, offer := range offers {
+					if NormalizeMpn(offer.Mpn) == norm {
+						liveOffers = append(liveOffers, offer)
+					}
+				}
+			}
+		}()
+	}
+
+	if s.nexarClientID != "" && s.nexarSecret != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			offers, err := s.queryNexarLive(ctx, norm)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				warnings = append(warnings, "Nexar lookup failed; live data unavailable")
 			} else {
 				for _, offer := range offers {
 					if NormalizeMpn(offer.Mpn) == norm {
@@ -482,6 +498,146 @@ func (s *IngestServer) queryDigiKeyLive(ctx context.Context, mpn string, targetQ
 		return nil, fmt.Errorf("no DigiKey package pricing available at requested quantity")
 	}
 	return []DistributorOffer{*best}, nil
+}
+
+func (s *IngestServer) queryNexarLive(ctx context.Context, mpn string) ([]DistributorOffer, error) {
+	s.nexarCalls.Add(1)
+	form := url.Values{}
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_id", s.nexarClientID)
+	form.Set("client_secret", s.nexarSecret)
+
+	tokenReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://identity.nexar.com/connect/token", strings.NewReader(form.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	tokenResp, err := s.httpClient.Do(tokenReq)
+	if err != nil {
+		return nil, err
+	}
+	defer tokenResp.Body.Close()
+	if tokenResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("nexar token status %d", tokenResp.StatusCode)
+	}
+	var tok struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(tokenResp.Body).Decode(&tok); err != nil || tok.AccessToken == "" {
+		return nil, fmt.Errorf("invalid nexar token")
+	}
+
+	gql := `query SearchMpn($q: String!) {
+		supSearchMpn(q: $q, limit: 1) {
+			results {
+				part {
+					mpn
+					shortDescription
+					manufacturer { name }
+					sellers {
+						company { name }
+						offers {
+							sku
+							inventoryLevel
+							moq
+							prices { quantity price currency }
+						}
+					}
+				}
+			}
+		}
+	}`
+	payload, _ := json.Marshal(map[string]any{
+		"query":     gql,
+		"variables": map[string]any{"q": mpn},
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.nexar.com/graphql", bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("nexar graphql status %d", resp.StatusCode)
+	}
+
+	var parsed struct {
+		Data struct {
+			SupSearchMpn struct {
+				Results []struct {
+					Part struct {
+						Mpn              string `json:"mpn"`
+						ShortDescription string `json:"shortDescription"`
+						Manufacturer     struct {
+							Name string `json:"name"`
+						} `json:"manufacturer"`
+						Sellers []struct {
+							Company struct {
+								Name string `json:"name"`
+							} `json:"company"`
+							Offers []struct {
+								Sku            string `json:"sku"`
+								InventoryLevel int    `json:"inventoryLevel"`
+								Moq            int    `json:"moq"`
+								Prices         []struct {
+									Quantity int     `json:"quantity"`
+									Price    float64 `json:"price"`
+									Currency string  `json:"currency"`
+								} `json:"prices"`
+							} `json:"offers"`
+						} `json:"sellers"`
+					} `json:"part"`
+				} `json:"results"`
+			} `json:"supSearchMpn"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, err
+	}
+
+	var out []DistributorOffer
+	nowStr := time.Now().UTC().Format(time.RFC3339)
+	for _, res := range parsed.Data.SupSearchMpn.Results {
+		p := res.Part
+		for _, seller := range p.Sellers {
+			for _, offer := range seller.Offers {
+				var breaks []PriceBreak
+				for _, pr := range offer.Prices {
+					if pr.Price > 0 && (pr.Currency == "" || strings.EqualFold(pr.Currency, "USD")) {
+						breaks = append(breaks, PriceBreak{Qty: pr.Quantity, UnitPrice: pr.Price})
+					}
+				}
+				if len(breaks) == 0 && offer.InventoryLevel == 0 {
+					continue
+				}
+				moq := offer.Moq
+				if moq < 1 {
+					moq = 1
+				}
+				out = append(out, DistributorOffer{
+					Distributor:     seller.Company.Name,
+					Sku:             offer.Sku,
+					Mpn:             p.Mpn,
+					Manufacturer:    p.Manufacturer.Name,
+					Description:     p.ShortDescription,
+					Package:         "Standard",
+					LifecycleStatus: "Active",
+					StockQty:        offer.InventoryLevel,
+					Moq:             moq,
+					LeadTimeWeeks:   0,
+					PriceBreaks:     breaks,
+					Source:          "nexar_api_live",
+					FetchedAt:       nowStr,
+				})
+			}
+		}
+	}
+	return out, nil
 }
 
 func (s *IngestServer) LookupCatalogPart(norm string) (CatalogPart, bool) {
@@ -932,7 +1088,7 @@ func (s *IngestServer) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		"live_connectors": map[string]bool{
 			"digikey_v4": s.digikeyClientID != "" && s.digikeySecret != "",
 			"mouser_v1":  s.mouserApiKey != "",
-			"nexar_gql":  false,
+			"nexar_gql":  s.nexarClientID != "" && s.nexarSecret != "",
 		},
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})

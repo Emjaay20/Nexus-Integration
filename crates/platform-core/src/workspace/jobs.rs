@@ -198,6 +198,89 @@ pub async fn cancel(
         AppError::NotFound
     })
 }
+pub async fn brief(
+    s: web::Data<WorkspaceState>,
+    a: Actor,
+    id: web::Path<Uuid>,
+) -> Result<HttpResponse, AppError> {
+    a.require(&s, Action::Read, Some(*id)).await?;
+    let job =
+        sqlx::query_as::<_, Job>("SELECT * FROM platform_jobs WHERE workspace_id=$1 AND id=$2")
+            .bind(a.workspace_id)
+            .bind(*id)
+            .fetch_optional(&s.pool)
+            .await?;
+    let Some(job) = job else {
+        return Err(a.missing(&s, *id, "job.brief").await?);
+    };
+    if job.state != "completed" {
+        return Err(AppError::Invalid(
+            "Wait for the sourcing job to complete before generating a brief".into(),
+        ));
+    }
+    let Some(rows) = job
+        .result
+        .as_ref()
+        .and_then(|r| r.0.get("results"))
+        .and_then(Value::as_array)
+    else {
+        return Err(AppError::Invalid("Job has no enrichment results".into()));
+    };
+    let bom_name: String =
+        sqlx::query_scalar("SELECT name FROM platform_boms WHERE workspace_id=$1 AND id=$2")
+            .bind(a.workspace_id)
+            .bind(job.bom_id)
+            .fetch_optional(&s.pool)
+            .await?
+            .unwrap_or_else(|| "Workspace BOM".into());
+    let mut target_batch = 100u32;
+    let components: Vec<crate::ai_copilot::ComponentRiskInput> = rows
+        .iter()
+        .take(50)
+        .map(|row| {
+            if let Some(q) = row["required_quantity"].as_u64() {
+                target_batch = target_batch.max(q as u32);
+            }
+            crate::ai_copilot::ComponentRiskInput {
+                mpn: row["normalized_mpn"]
+                    .as_str()
+                    .or_else(|| row["query_mpn"].as_str())
+                    .unwrap_or("UNKNOWN")
+                    .to_string(),
+                manufacturer: row["manufacturer"].as_str().unwrap_or("").to_string(),
+                description: row["description"].as_str().unwrap_or("").to_string(),
+                lead_time_weeks: row["max_lead_time_weeks"].as_u64().unwrap_or(0) as u32,
+                lifecycle_status: row["lifecycle_status"]
+                    .as_str()
+                    .unwrap_or("Active")
+                    .to_string(),
+                is_single_source: row["is_single_source"].as_bool().unwrap_or(false),
+                unit_price_usd: row["best_unit_price_at_qty"].as_f64().unwrap_or(0.0),
+            }
+        })
+        .collect();
+    let copilot = crate::ai_copilot::AiCopilotEngine::new();
+    let report = copilot
+        .analyze_sourcing_risk(crate::ai_copilot::SourcingRiskRequest {
+            project_name: format!("{bom_name} (rev {})", job.bom_revision),
+            target_batch_size: target_batch,
+            components,
+        })
+        .await;
+    let mut tx = s.pool.begin().await?;
+    audit(
+        &mut tx,
+        &a,
+        Some(*id),
+        "job.brief",
+        true,
+        &format!("analyzed by {}", report.analyzed_by),
+    )
+    .await?;
+    tx.commit().await?;
+    metrics::counter!("ai_sourcing_analyses_total").increment(1);
+    Ok(HttpResponse::Ok().json(report))
+}
 pub async fn claim(pool: &PgPool) -> Result<Option<Job>, sqlx::Error> {
     sqlx::query("UPDATE platform_jobs SET state='failed',error='Worker lease expired after maximum attempts',lease_token=NULL,lease_until=NULL,updated_at=now() WHERE state='running' AND lease_until<now() AND attempt>=max_attempts").execute(pool).await?;
     sqlx::query_as::<_,Job>("WITH candidate AS (SELECT id FROM platform_jobs WHERE ((state IN ('queued','retry_wait') AND available_at<=now()) OR (state='running' AND lease_until<now())) AND attempt<max_attempts ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) UPDATE platform_jobs j SET state='running',attempt=attempt+1,error=NULL,lease_token=$1,lease_until=now()+interval '30 seconds',updated_at=now() FROM candidate c WHERE j.id=c.id RETURNING j.*").bind(Uuid::new_v4()).fetch_optional(pool).await

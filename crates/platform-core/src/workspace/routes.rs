@@ -18,7 +18,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/jobs", web::get().to(super::jobs::list))
             .route("/jobs", web::post().to(super::jobs::submit))
             .route("/jobs/{id}", web::get().to(super::jobs::get))
-            .route("/jobs/{id}/cancel", web::post().to(super::jobs::cancel)),
+            .route("/jobs/{id}/cancel", web::post().to(super::jobs::cancel))
+            .route("/jobs/{id}/brief", web::post().to(super::jobs::brief)),
     );
     cfg.route("/ready", web::get().to(ready));
 }

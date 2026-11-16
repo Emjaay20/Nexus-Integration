@@ -76,6 +76,8 @@ pub struct AlternateMatchResponse {
 
 pub struct AiCopilotEngine {
     client: reqwest::Client,
+    groq_api_key: Option<String>,
+    groq_model: String,
     api_key: Option<String>,
 }
 
@@ -87,6 +89,13 @@ impl Default for AiCopilotEngine {
 
 impl AiCopilotEngine {
     pub fn new() -> Self {
+        let groq_api_key = env::var("GROQ_API_KEY")
+            .ok()
+            .filter(|k| !k.trim().is_empty());
+        let groq_model = env::var("GROQ_MODEL")
+            .ok()
+            .filter(|m| !m.trim().is_empty())
+            .unwrap_or_else(|| "llama-3.3-70b-versatile".to_string());
         let api_key = env::var("GEMINI_API_KEY")
             .ok()
             .filter(|k| !k.trim().is_empty());
@@ -95,6 +104,8 @@ impl AiCopilotEngine {
                 .timeout(std::time::Duration::from_secs(15))
                 .build()
                 .unwrap_or_default(),
+            groq_api_key,
+            groq_model,
             api_key,
         }
     }
@@ -153,10 +164,20 @@ impl AiCopilotEngine {
             });
         }
 
-        // If GEMINI_API_KEY is available, we augment with live LLM synthesis
+        // If GROQ_API_KEY is available, augment with live Groq LLM synthesis first
+        if let Some(ref key) = self.groq_api_key {
+            if let Ok(llm_report) = self
+                .call_groq_risk_analysis(key, &req, risk_score, &risk_level, bottlenecks.clone())
+                .await
+            {
+                return llm_report;
+            }
+        }
+
+        // Fallback to GEMINI_API_KEY if configured
         if let Some(ref key) = self.api_key {
             if let Ok(llm_report) = self
-                .call_gemini_risk_analysis(key, &req, risk_score, &risk_level)
+                .call_gemini_risk_analysis(key, &req, risk_score, &risk_level, bottlenecks.clone())
                 .await
             {
                 return llm_report;
@@ -265,35 +286,149 @@ impl AiCopilotEngine {
         }
     }
 
+    fn build_risk_prompt(req: &SourcingRiskRequest) -> Result<String, anyhow::Error> {
+        Ok(format!(
+            r#"You are a senior electronics supply chain analyst. Analyze this PCBA Bill of Materials for supply chain vulnerabilities:
+Project: {}
+Target Production Batch: {} units
+Components:
+{}
+
+Return ONLY a JSON object with:
+- overall_risk_score (integer 0-100)
+- risk_level ("Low", "Medium", "High", "Critical")
+- strategic_recommendations (array of 3-4 concise, actionable engineering/sourcing recommendations referencing the exact MPNs above)
+- estimated_cost_reduction_opportunity_pct (number)
+"#,
+            req.project_name,
+            req.target_batch_size,
+            serde_json::to_string_pretty(&req.components)?
+        ))
+    }
+
+    fn build_llm_report(
+        req: &SourcingRiskRequest,
+        text_content: &str,
+        baseline_score: u32,
+        baseline_level: &str,
+        bottlenecks: Vec<LeadTimeBottleneck>,
+        analyzed_by: String,
+    ) -> Result<SourcingRiskReport, anyhow::Error> {
+        let parsed: serde_json::Value = serde_json::from_str(text_content)?;
+        let risk_score = parsed["overall_risk_score"]
+            .as_u64()
+            .map(|s| (s as u32).min(100))
+            .unwrap_or(baseline_score);
+        let risk_level = parsed["risk_level"]
+            .as_str()
+            .filter(|lvl| matches!(*lvl, "Low" | "Medium" | "High" | "Critical"))
+            .unwrap_or(baseline_level)
+            .to_string();
+        let recs: Vec<String> = parsed["strategic_recommendations"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .take(5)
+                    .collect()
+            })
+            .unwrap_or_default();
+        let cost_reduction = parsed["estimated_cost_reduction_opportunity_pct"]
+            .as_f64()
+            .unwrap_or(12.5)
+            .clamp(0.0, 50.0);
+
+        Ok(SourcingRiskReport {
+            project_name: req.project_name.clone(),
+            overall_risk_score: risk_score,
+            risk_level,
+            single_source_count: req.components.iter().filter(|c| c.is_single_source).count(),
+            obsolete_or_nrnd_count: req
+                .components
+                .iter()
+                .filter(|c| {
+                    let s = c.lifecycle_status.to_uppercase();
+                    s.contains("EOL") || s.contains("OBSOLETE") || s.contains("NRND")
+                })
+                .count(),
+            max_lead_time_weeks: req
+                .components
+                .iter()
+                .map(|c| c.lead_time_weeks)
+                .max()
+                .unwrap_or(0),
+            lead_time_bottlenecks: bottlenecks,
+            strategic_recommendations: recs,
+            estimated_cost_reduction_opportunity_pct: cost_reduction,
+            analyzed_by,
+        })
+    }
+
+    async fn call_groq_risk_analysis(
+        &self,
+        api_key: &str,
+        req: &SourcingRiskRequest,
+        baseline_score: u32,
+        baseline_level: &str,
+        bottlenecks: Vec<LeadTimeBottleneck>,
+    ) -> Result<SourcingRiskReport, anyhow::Error> {
+        let prompt = Self::build_risk_prompt(req)?;
+        let body = serde_json::json!({
+            "model": self.groq_model,
+            "temperature": 0.2,
+            "response_format": { "type": "json_object" },
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an electronics sourcing analyst. Respond strictly with valid JSON."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        });
+
+        let resp = self
+            .client
+            .post("https://api.groq.com/openai/v1/chat/completions")
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(anyhow::anyhow!("Groq API error: {}", resp.status()));
+        }
+
+        let resp_json: serde_json::Value = resp.json().await?;
+        let text_content = resp_json["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Empty Groq response"))?;
+
+        Self::build_llm_report(
+            req,
+            text_content,
+            baseline_score,
+            baseline_level,
+            bottlenecks,
+            format!("Groq ({})", self.groq_model),
+        )
+    }
+
     async fn call_gemini_risk_analysis(
         &self,
         api_key: &str,
         req: &SourcingRiskRequest,
         baseline_score: u32,
         baseline_level: &str,
+        bottlenecks: Vec<LeadTimeBottleneck>,
     ) -> Result<SourcingRiskReport, anyhow::Error> {
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}",
             api_key
         );
 
-        let prompt = format!(
-            r#"You are an electronics sourcing analyst. Analyze this PCBA Bill of Materials for supply chain vulnerabilities:
-Project: {}
-Target Production Batch: {} units
-Components:
-{}
-
-Return a JSON object with:
-- overall_risk_score (integer 0-100)
-- risk_level ("Low", "Medium", "High", "Critical")
-- strategic_recommendations (array of 3-4 actionable engineering/sourcing recommendations)
-- estimated_cost_reduction_opportunity_pct (number)
-"#,
-            req.project_name,
-            req.target_batch_size,
-            serde_json::to_string_pretty(&req.components)?
-        );
+        let prompt = Self::build_risk_prompt(req)?;
 
         let body = serde_json::json!({
             "contents": [{
@@ -314,50 +449,14 @@ Return a JSON object with:
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Empty Gemini response"))?;
 
-        let parsed: serde_json::Value = serde_json::from_str(text_content)?;
-
-        let risk_score = parsed["overall_risk_score"]
-            .as_u64()
-            .unwrap_or(baseline_score as u64) as u32;
-        let risk_level = parsed["risk_level"]
-            .as_str()
-            .unwrap_or(baseline_level)
-            .to_string();
-        let recs: Vec<String> = parsed["strategic_recommendations"]
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let cost_reduction = parsed["estimated_cost_reduction_opportunity_pct"]
-            .as_f64()
-            .unwrap_or(14.0);
-
-        Ok(SourcingRiskReport {
-            project_name: req.project_name.clone(),
-            overall_risk_score: risk_score,
-            risk_level,
-            single_source_count: req.components.iter().filter(|c| c.is_single_source).count(),
-            obsolete_or_nrnd_count: req
-                .components
-                .iter()
-                .filter(|c| {
-                    c.lifecycle_status.contains("EOL") || c.lifecycle_status.contains("OBSOLETE")
-                })
-                .count(),
-            max_lead_time_weeks: req
-                .components
-                .iter()
-                .map(|c| c.lead_time_weeks)
-                .max()
-                .unwrap_or(0),
-            lead_time_bottlenecks: Vec::new(),
-            strategic_recommendations: recs,
-            estimated_cost_reduction_opportunity_pct: cost_reduction,
-            analyzed_by: "Gemini-2.5-Flash (Live Electronics AI)".to_string(),
-        })
+        Self::build_llm_report(
+            req,
+            text_content,
+            baseline_score,
+            baseline_level,
+            bottlenecks,
+            "Gemini-2.5-Flash (Live Electronics AI)".to_string(),
+        )
     }
 }
 

@@ -8,4 +8,4 @@
 - Prefer the isolated `make dev` environment. Database integration tests require the disposable `nexus_platform_test` database and random schemas. Do not run destructive fixtures or load tests against the public application.
 - Run formatting, Clippy, Rust tests, the relevant PostgreSQL integration suite, Go race tests, web unit tests, and a production build for changes that affect those areas. `docs/platform/README.md` documents exact commands.
 - Exercise the real Helm chart in the disposable Kind context before claiming rollout or rollback verification. Keep Aether hosting limitations explicit.
-- Do not add AI/model dependencies to the application during the platform foundation work.
+- AI/Copilot features must remain bounded, advisory over persisted job snapshots, audit-logged, and configured strictly via environment variables (`GROQ_API_KEY` / `GEMINI_API_KEY`); never hardcode keys or let LLMs bypass authorization or pricing math.
