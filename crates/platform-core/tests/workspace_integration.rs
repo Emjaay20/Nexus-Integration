@@ -583,7 +583,7 @@ async fn worker_processes_real_http_batches_and_persists_results() {
     let mut f = Fixture::new().await;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let server=actix_web::HttpServer::new(||App::new().route("/api/v1/ingest/enrich-batch",web::post().to(|body:web::Json<Value>|async move{actix_web::HttpResponse::Ok().json(json!({"results":body["mpns"].as_array().unwrap().iter().map(|mpn|json!({"query_mpn":mpn,"normalized_mpn":mpn,"data_source":"reference","offers":[]})).collect::<Vec<_>>()}))}))).listen(listener).unwrap().run();
+    let server=actix_web::HttpServer::new(||App::new().route("/api/v1/ingest/enrich-batch",web::post().to(|body:web::Json<Value>|async move{actix_web::HttpResponse::Ok().json(json!({"results":body["mpns"].as_array().unwrap().iter().map(|mpn|json!({"query_mpn":mpn,"normalized_mpn":mpn,"data_source":"reference","offers":[],"best_unit_price_at_qty":3.0,"max_lead_time_weeks":26,"distributor_count":1,"is_single_source":true,"total_stock":0,"lifecycle_status":"Active"})).collect::<Vec<_>>()}))}))).listen(listener).unwrap().run();
     let handle = server.handle();
     actix_web::rt::spawn(server);
     f.state.ingest_url = format!("http://{address}");
@@ -616,7 +616,7 @@ async fn worker_processes_real_http_batches_and_persists_results() {
     let id = Uuid::parse_str(job["id"].as_str().unwrap()).unwrap();
     // Simulate a worker dying after its first quantity group was checkpointed.
     let interrupted = jobs::claim(&f.state.pool).await.unwrap().unwrap();
-    assert!(jobs::checkpoint(&f.state.pool,&interrupted,1,&json!({"results":[{"query_mpn":"STM32F401RET6","required_quantity":10,"data_source":"reference"}]})).await.unwrap());
+    assert!(jobs::checkpoint(&f.state.pool,&interrupted,1,&json!({"results":[{"query_mpn":"STM32F401RET6","required_quantity":10,"data_source":"reference","best_unit_price_at_qty":2.0,"max_lead_time_weeks":6,"distributor_count":2,"total_stock":1000,"lifecycle_status":"Active"}]})).await.unwrap());
     sqlx::query("UPDATE platform_jobs SET lease_until=now()-interval '1 second' WHERE id=$1")
         .bind(id)
         .execute(&f.state.pool)
@@ -640,7 +640,15 @@ async fn worker_processes_real_http_batches_and_persists_results() {
     .unwrap();
     assert_eq!(completed.attempt, 2);
     assert_eq!(completed.progress, 2);
-    let results = &completed.result.unwrap().0["results"];
+    let result = completed.result.unwrap().0;
+    let results = &result["results"];
+    assert_eq!(result["summary"]["total_extended_cost_usd"], 140.0);
+    assert_eq!(result["summary"]["priced_parts"], 2);
+    assert_eq!(result["summary"]["reference_count"], 2);
+    assert_eq!(result["summary"]["live_count"], 0);
+    assert_eq!(result["summary"]["attention_count"], 1);
+    assert!(results[0]["ml_risk_prediction"]["risk_score"].is_number());
+    assert_eq!(results[1]["ml_risk_prediction"]["validated"], false);
     assert_eq!(results.as_array().unwrap().len(), 2);
     assert_eq!(results[0]["required_quantity"], 10);
     assert_eq!(results[1]["required_quantity"], 40);

@@ -35,6 +35,18 @@ type Bom = {
   items: Item[];
   updated_at: string;
 };
+type JobSummaryStats = {
+  total_extended_cost_usd?: number | null;
+  priced_parts?: number;
+  unpriced_parts?: number;
+  reference_count?: number;
+  unknown_lead_time_parts?: number;
+  attention_count?: number;
+  single_source_count?: number;
+  max_lead_time_weeks?: number | null;
+  live_count?: number;
+  total_parts?: number;
+};
 type Job = {
   id: string;
   bom_id: string;
@@ -47,8 +59,9 @@ type Job = {
   error: string | null;
   request_id: string;
   has_result?: boolean;
-  result: { results: Part[] } | null;
+  result: { results: Part[]; summary?: JobSummaryStats } | null;
 };
+
 type Member = { user_id: string; role: string };
 type Audit = {
   id: string;
@@ -494,9 +507,9 @@ export default function Workspace() {
                         <button
                           className="btn btn-secondary btn-sm"
                           onClick={() =>
-                            act(async () =>
-                              setResultJob(await api<Job>(`jobs/${job.id}`)),
-                            )
+                            act(async () => {
+                              setResultJob(await api<Job>(`jobs/${job.id}`));
+                            })
                           }
                         >
                           View results
@@ -526,6 +539,45 @@ export default function Workspace() {
               {resultJob?.result && (
                 <section className="result-section">
                   <h3>Results · saved revision {resultJob.bom_revision}</h3>
+                  {resultJob.result.summary && (
+                    <div className="metric-row" style={{ marginTop: 16 }}>
+                      <div className="metric">
+                        <b>
+                          {resultJob.result.summary.total_extended_cost_usd == null ? "—" : new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                            maximumFractionDigits: 2,
+                          }).format(
+                            resultJob.result.summary.total_extended_cost_usd,
+                          )}
+                        </b>
+                        <span>Cost of priced lines</span>
+                      </div>
+                      <div className="metric">
+                        <b>{resultJob.result.summary.attention_count ?? 0}</b>
+                        <span>Needs attention</span>
+                      </div>
+                      <div className="metric">
+                        <b>
+                          {resultJob.result.summary.single_source_count ?? 0}
+                        </b>
+                        <span>One-distributor parts</span>
+                      </div>
+                      <div className="metric">
+                        <b>
+                          {resultJob.result.summary.max_lead_time_weeks == null ? "Unknown" : `${resultJob.result.summary.max_lead_time_weeks} wks`}
+                        </b>
+                        <span>Max reported lead time</span>
+                      </div>
+                    </div>
+                  )}
+                  {resultJob.result.summary && (
+                    <p className="note" style={{ marginTop: 16 }}>
+                      Prices available for {resultJob.result.summary.priced_parts ?? "unknown"} of {resultJob.result.summary.total_parts} lines. Totals exclude unpriced lines.
+                      {" "}{resultJob.result.summary.live_count ?? 0} live-response lines; {resultJob.result.summary.reference_count ?? 0} reference lines.
+                      {" "}Unknown lead times: {resultJob.result.summary.unknown_lead_time_parts ?? "unknown"}. Needs attention includes unscored parts.
+                    </p>
+                  )}
                   <p className="note warning" style={{ marginTop: 16 }}>
                     Reference catalog results are illustrative. Only rows
                     labeled Live API represent supplier responses. Quantity on

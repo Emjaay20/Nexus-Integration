@@ -44,6 +44,13 @@ for _ in range(40):
 assert job['state']=='completed',job
 assert job['progress']==2 and all(row['data_source']=='reference' for row in job['result']['results'])
 assert sorted(row['required_quantity'] for row in job['result']['results'])==[10,40]
+summary=job['result']['summary'];rows=job['result']['results']
+assert summary['total_parts']==2 and summary['reference_count']==2 and summary['live_count']==0
+assert summary['priced_parts']+summary['unpriced_parts']==2
+expected=sum(row['best_unit_price_at_qty']*row['required_quantity'] for row in rows if row.get('best_unit_price_at_qty',0)>0)
+assert abs(summary['total_extended_cost_usd']-round(expected,2))<0.011
+assert all(row.get('ml_risk_prediction',{}).get('validated') is False for row in rows if row.get('ml_risk_prediction'))
+
 status,_=call(a,'/api/workspace/members/'+bc['actor']['user_id'],'PUT',{'role':'viewer'});assert status==200
 status,_=call(b,path,'PUT',body|{'revision':2});assert status==403
 status,events=call(a,'/api/workspace/audit');assert status==200 and any(e['decision']=='deny' for e in events)
@@ -58,5 +65,5 @@ status,_=call(demo,'/api/workspace/boms','POST',body);assert status==403
 root=pathlib.Path('.nexus');root.mkdir(exist_ok=True)
 fd=os.open(root/'smoke-account.json',os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
 with os.fdopen(fd,'w') as file:json.dump(credentials,file)
-result={'readonly_demo':'passed','tenant_isolation':'passed','authenticated_identity':'passed','role_enforcement_and_revocation':'passed','revision_conflict':'passed','durable_job':'passed','idempotency':'passed','audit':'passed','bounded_list_payloads':'passed','bom_id':bom['id'],'request_id':job['request_id']}
+result={'job_sourcing_summary':'passed','readonly_demo':'passed','tenant_isolation':'passed','authenticated_identity':'passed','role_enforcement_and_revocation':'passed','revision_conflict':'passed','durable_job':'passed','idempotency':'passed','audit':'passed','bounded_list_payloads':'passed','bom_id':bom['id'],'request_id':job['request_id']}
 (root/'evidence').mkdir(exist_ok=True);(root/'evidence/workspace-smoke.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))

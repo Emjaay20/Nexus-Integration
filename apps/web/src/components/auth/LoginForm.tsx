@@ -1,8 +1,9 @@
 "use client";
 
+import { loginTarget } from "@/lib/login-target";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   Github,
@@ -28,10 +29,10 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const urlError = searchParams.get("error");
+  const targetPath = loginTarget(searchParams.get("callbackUrl"));
   const errorMessages: Record<string, string> = {
     "invalid-link": "This login link is invalid or has already been used.",
     expired: "This login link has expired. Please request a new one.",
@@ -40,7 +41,7 @@ export function LoginForm() {
   };
 
   const handleGitHubLogin = () => {
-    signIn("github", { callbackUrl: "/integration-hub" });
+    signIn("github", { callbackUrl: targetPath });
   };
 
   const handlePasswordSignIn = async (e: React.FormEvent) => {
@@ -58,8 +59,7 @@ export function LoginForm() {
           "Invalid email or password. Need an account? Switch to Create Account.",
         );
       } else {
-        router.push("/integration-hub");
-        router.refresh();
+        window.location.assign(targetPath);
       }
     } catch {
       setError("Sign-in failed. Please try again.");
@@ -98,8 +98,7 @@ export function LoginForm() {
         setError("Account created, please sign in.");
         setActiveTab("signin");
       } else {
-        router.push("/integration-hub");
-        router.refresh();
+        window.location.assign(targetPath);
       }
     } catch {
       setError("Failed to register account. Please try again.");
@@ -142,8 +141,7 @@ export function LoginForm() {
       if (result?.error) {
         setError("Demo login failed. Please try again.");
       } else {
-        router.push("/integration-hub");
-        router.refresh();
+        window.location.assign(targetPath);
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -309,7 +307,7 @@ export function LoginForm() {
               onClick={handleDemoLogin}
               className="text-xs text-blue-600 hover:text-blue-800 font-medium"
             >
-              Or sign in with one click using the pre-seeded Read-only Demo demo
+              Or sign in with one click using the pre-seeded Read-only Demo
               account →
             </button>
           </div>
@@ -387,7 +385,7 @@ export function LoginForm() {
               htmlFor="register-password"
               className="block text-[11px] font-semibold tracking-wider text-slate-500 uppercase mb-1"
             >
-              Password (min. 6 chars)
+              Password (min. 10 chars)
             </label>
             <input
               id="register-password"

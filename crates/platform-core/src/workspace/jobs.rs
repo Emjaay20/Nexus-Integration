@@ -356,10 +356,19 @@ async fn run(s: &WorkspaceState, j: &Job) -> Result<(), (String, bool)> {
             }
         }
     }
+    // Recompute derived data for all rows, including checkpoints from older workers.
+    for row in &mut results {
+        score_sourcing_row(row);
+    }
+    let summary = sourcing_summary(&results);
     if finish(
         &s.pool,
         j,
-        &json!({"results":results,"bom_revision":j.bom_revision}),
+        &json!({
+            "results": results,
+            "bom_revision": j.bom_revision,
+            "summary": summary
+        }),
     )
     .await
     .map_err(|_| ("Storage unavailable".into(), true))?
@@ -368,4 +377,125 @@ async fn run(s: &WorkspaceState, j: &Job) -> Result<(), (String, bool)> {
         tracing::info!("job completed");
     }
     Ok(())
+}
+
+fn score_sourcing_row(row: &mut Value) {
+    row["ml_risk_prediction"] = Value::Null;
+    let Some(dist) = row["distributor_count"]
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())
+        .filter(|n| *n > 0)
+    else {
+        return;
+    };
+    let Some(lead) = row["max_lead_time_weeks"]
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())
+        .filter(|n| *n > 0)
+    else {
+        return;
+    };
+    let Some(stock) = row["total_stock"].as_u64() else {
+        return;
+    };
+    let lifecycle = row["lifecycle_status"].as_str().unwrap_or("");
+    if lifecycle.is_empty()
+        || lifecycle.eq_ignore_ascii_case("unknown")
+        || !matches!(row["data_source"].as_str(), Some("reference" | "live"))
+    {
+        return;
+    }
+    let pred = crate::ml_engine::MlRiskEngine::predict_component_risk(
+        &crate::ml_engine::MlComponentFeatures {
+            mpn: row["normalized_mpn"]
+                .as_str()
+                .or(row["query_mpn"].as_str())
+                .unwrap_or("")
+                .to_string(),
+            manufacturer: row["manufacturer"].as_str().unwrap_or("").to_string(),
+            category: row["category"].as_str().unwrap_or("").to_string(),
+            package: row["package"].as_str().unwrap_or("").to_string(),
+            description: row["description"].as_str().unwrap_or("").to_string(),
+            lead_time_weeks: lead,
+            stock_qty: stock,
+            required_qty: row["required_quantity"].as_u64().unwrap_or(1),
+            distributor_count: dist,
+            lifecycle_status: lifecycle.to_string(),
+            unit_price_usd: row["best_unit_price_at_qty"].as_f64().unwrap_or(0.0),
+        },
+    );
+    row["ml_risk_prediction"] = serde_json::to_value(pred).unwrap_or(Value::Null);
+}
+
+fn sourcing_summary(results: &[Value]) -> Value {
+    let prices: Vec<f64> = results
+        .iter()
+        .filter_map(|r| {
+            if !matches!(r["data_source"].as_str(), Some("reference" | "live")) {
+                return None;
+            }
+            let price = r["best_unit_price_at_qty"]
+                .as_f64()
+                .filter(|p| p.is_finite() && *p > 0.0)?;
+            let quantity = r["required_quantity"].as_u64().filter(|q| *q > 0)?;
+            Some(price * quantity as f64)
+        })
+        .collect();
+    let cost = (!prices.is_empty()).then(|| (prices.iter().sum::<f64>() * 100.0).round() / 100.0);
+    let known_leads: Vec<u64> = results
+        .iter()
+        .filter_map(|r| r["max_lead_time_weeks"].as_u64().filter(|n| *n > 0))
+        .collect();
+    json!({
+        "total_extended_cost_usd": cost,
+        "priced_parts": prices.len(),
+        "unpriced_parts": results.len() - prices.len(),
+        "attention_count": results.iter().filter(|r| r["ml_risk_prediction"]["risk_score"].as_f64().is_none_or(|score| score >= 0.45)).count(),
+        "single_source_count": results.iter().filter(|r| r["is_single_source"].as_bool().unwrap_or(false)).count(),
+        "max_lead_time_weeks": known_leads.iter().max(),
+        "unknown_lead_time_parts": results.len() - known_leads.len(),
+        "live_count": results.iter().filter(|r| r["data_source"] == "live").count(),
+        "reference_count": results.iter().filter(|r| r["data_source"] == "reference").count(),
+        "total_parts": results.len()
+    })
+}
+
+#[cfg(test)]
+mod sourcing_tests {
+    use super::*;
+    #[test]
+    fn missing_prices_and_lead_times_are_not_reported_as_free_or_immediate() {
+        let summary = sourcing_summary(&[
+            json!({"data_source":"unavailable","required_quantity":10,"best_unit_price_at_qty":0,"max_lead_time_weeks":0}),
+        ]);
+        assert!(summary["total_extended_cost_usd"].is_null());
+        assert!(summary["max_lead_time_weeks"].is_null());
+        assert_eq!(summary["attention_count"], 1);
+        assert_eq!(summary["unpriced_parts"], 1);
+    }
+    #[test]
+    fn sourced_results_keep_quantity_provenance_and_explainable_scores() {
+        let mut row = json!({"data_source":"reference","normalized_mpn":"PART","required_quantity":10,"best_unit_price_at_qty":2.5,"distributor_count":1,"is_single_source":true,"max_lead_time_weeks":26,"total_stock":0,"lifecycle_status":"Active"});
+        score_sourcing_row(&mut row);
+        assert!(row["ml_risk_prediction"]["risk_score"].as_f64().unwrap() >= 0.45);
+        assert_eq!(row["ml_risk_prediction"]["validated"], false);
+        let summary = sourcing_summary(&[
+            row,
+            json!({"data_source":"unavailable","required_quantity":40}),
+        ]);
+        assert_eq!(summary["total_extended_cost_usd"], 25.0);
+        assert_eq!(summary["priced_parts"], 1);
+        assert_eq!(summary["unpriced_parts"], 1);
+        assert_eq!(summary["reference_count"], 1);
+        assert_eq!(summary["live_count"], 0);
+        assert_eq!(summary["attention_count"], 2);
+        assert_eq!(summary["single_source_count"], 1);
+        assert_eq!(summary["max_lead_time_weeks"], 26);
+    }
+    #[test]
+    fn incomplete_live_data_does_not_get_an_invented_risk_score() {
+        let mut row = json!({"data_source":"live","distributor_count":2,"max_lead_time_weeks":0,"total_stock":100});
+        score_sourcing_row(&mut row);
+        assert!(row["ml_risk_prediction"].is_null());
+    }
 }

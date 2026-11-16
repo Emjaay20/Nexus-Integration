@@ -2,16 +2,18 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Download, CheckCircle, FileJson, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Download, CheckCircle, FileJson, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { ValidatedRow } from '@/lib/validator';
 import * as XLSX from 'xlsx';
 
 interface ExportViewProps {
     rows: ValidatedRow[];
+    savedToWorkspace: boolean;
     onReset: () => void;
 }
 
-export function ExportView({ rows, onReset }: ExportViewProps) {
+export function ExportView({ rows, onReset, savedToWorkspace }: ExportViewProps) {
     const validRows = rows.filter(r => r.status !== 'invalid').map(r => r.mapped);
 
     const downloadJSON = () => {
@@ -41,12 +43,22 @@ export function ExportView({ rows, onReset }: ExportViewProps) {
                 <CheckCircle className="w-10 h-10 text-green-600" />
             </div>
 
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Import Successful!</h2>
-            <p className="text-slate-500 mb-8">
-                We successfully processed <strong>{rows.length} rows</strong>.
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">{savedToWorkspace ? "Import saved" : "Export ready"}</h2>
+            <p className="text-slate-500 mb-6">
+                <strong>{validRows.length} usable rows</strong> out of {rows.length} processed. {savedToWorkspace ? "Saved to your workspace." : "Not saved to your workspace. You can still download the clean rows."}
                 <br />
-                Your clean data is ready for export.
+                {savedToWorkspace ? "Enrich supplier offers in your workspace or download a clean copy below." : "Return to validation to review errors before importing again."}
             </p>
+
+            {savedToWorkspace && <div className="mb-8">
+                <Link
+                    href="/workspace"
+                    className="btn btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                >
+                    Open in Workspace <ArrowRight className="w-4 h-4" />
+                </Link>
+            </div>}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
                 <button

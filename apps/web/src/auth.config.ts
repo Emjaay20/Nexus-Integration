@@ -29,11 +29,15 @@ export const authConfig = {
             const isOnLogin = nextUrl.pathname.startsWith("/login")
 
             if (isOnProtected) {
-                return isLoggedIn
+                if (isLoggedIn) return true
+                const callbackPath = `${nextUrl.pathname}${nextUrl.search}`
+                const loginUrl = new URL("/login", nextUrl)
+                loginUrl.searchParams.set("callbackUrl", callbackPath)
+                return Response.redirect(loginUrl)
             }
 
             if (isOnLogin && isLoggedIn) {
-                return Response.redirect(new URL("/integration-hub", nextUrl))
+                return Response.redirect(new URL("/workspace", nextUrl))
             }
 
             return true

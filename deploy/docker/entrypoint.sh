@@ -25,6 +25,15 @@ export RUST_BACKEND_URL="http://127.0.0.1:8088"
 export GO_INGEST_URL="http://127.0.0.1:8090"
 export HOSTNAME="0.0.0.0"
 export PORT="${PORT:-3000}"
+if [ -n "${AUTH_URL:-}" ]; then
+    export AUTH_URL="$(printf '%s' "$AUTH_URL" | sed 's/\.aetherhost\.com\.ng/.aetherhost.app/g')"
+fi
+if [ -n "${NEXTAUTH_URL:-}" ]; then
+    export NEXTAUTH_URL="$(printf '%s' "$NEXTAUTH_URL" | sed 's/\.aetherhost\.com\.ng/.aetherhost.app/g')"
+fi
+if [ -n "${NEXT_PUBLIC_APP_URL:-}" ]; then
+    export NEXT_PUBLIC_APP_URL="$(printf '%s' "$NEXT_PUBLIC_APP_URL" | sed 's/\.aetherhost\.com\.ng/.aetherhost.app/g')"
+fi
 echo "[nexus-entrypoint] Starting workspace on :$PORT"
 node server.js &
 pids="$pids $!"

@@ -26,12 +26,14 @@ export function ImporterWizard() {
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping | null>(null);
+  const [savedToWorkspace, setSavedToWorkspace] = useState(false);
   const [validatedRows, setValidatedRows] = useState<ValidatedRow[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
 
   const handleMappingConfirm = async (newMapping: ColumnMapping) => {
     setMapping(newMapping);
+    setSavedToWorkspace(false);
     setIsValidating(true);
 
     const results = await validateData(parsedData, newMapping);
@@ -83,6 +85,7 @@ export function ImporterWizard() {
         const result = await saved.json();
         throw new Error(result.error || "BOM was not saved");
       }
+      setSavedToWorkspace(true);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "BOM was not saved.");
       console.error("Failed to persist BOM import:", err);
@@ -245,12 +248,14 @@ export function ImporterWizard() {
         {step === 4 && (
           <ExportView
             rows={validatedRows}
+            savedToWorkspace={savedToWorkspace}
             onReset={() => {
               setStep(1);
               setFile(null);
               setParsedData([]);
               setMapping(null);
               setValidatedRows([]);
+              setSavedToWorkspace(false);
             }}
           />
         )}

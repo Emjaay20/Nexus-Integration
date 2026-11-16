@@ -118,3 +118,7 @@ npm --prefix apps/web run build
 ```
 
 Database integration tests refuse any database whose name is not exactly `nexus_platform_test`, use fresh random schemas, and drop only those schemas. Do not point them at a user or production database.
+
+## Role fit and next improvements
+
+See [ROLE-FIT.md](ROLE-FIT.md) for the Luminovo responsibility-to-evidence mapping, explicit limits, and prioritized work with acceptance criteria.
