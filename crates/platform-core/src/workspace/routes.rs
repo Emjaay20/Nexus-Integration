@@ -19,7 +19,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/jobs", web::post().to(super::jobs::submit))
             .route("/jobs/{id}", web::get().to(super::jobs::get))
             .route("/jobs/{id}/cancel", web::post().to(super::jobs::cancel))
-            .route("/jobs/{id}/brief", web::post().to(super::jobs::brief)),
+            .route("/jobs/{id}/brief", web::post().to(super::brief::generate))
+            .route("/jobs/{id}/brief", web::get().to(super::brief::get)),
     );
     cfg.route("/ready", web::get().to(ready));
 }
@@ -93,12 +94,17 @@ struct BomSummary {
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
-async fn list(s: web::Data<WorkspaceState>, a: Actor) -> Result<HttpResponse, AppError> {
+async fn list(
+    s: web::Data<WorkspaceState>,
+    a: Actor,
+    page: web::Query<Page>,
+) -> Result<HttpResponse, AppError> {
     a.require(&s, Action::Read, None).await?;
     let boms = sqlx::query_as::<_, BomSummary>(
-        "SELECT id,name,revision,jsonb_array_length(items)::int AS item_count,created_at,updated_at FROM platform_boms WHERE workspace_id=$1 ORDER BY updated_at DESC LIMIT 50",
+        "SELECT id,name,revision,jsonb_array_length(items)::int AS item_count,created_at,updated_at FROM platform_boms WHERE workspace_id=$1 ORDER BY updated_at DESC,id DESC LIMIT 50 OFFSET $2",
     )
     .bind(a.workspace_id)
+    .bind(page.offset()?)
     .fetch_all(&s.pool)
     .await?;
     let mut tx = s.pool.begin().await?;
@@ -283,9 +289,13 @@ struct AuditRecord {
     request_id: Uuid,
     created_at: DateTime<Utc>,
 }
-async fn audit_events(s: web::Data<WorkspaceState>, a: Actor) -> Result<HttpResponse, AppError> {
+async fn audit_events(
+    s: web::Data<WorkspaceState>,
+    a: Actor,
+    page: web::Query<Page>,
+) -> Result<HttpResponse, AppError> {
     a.require(&s, Action::ManageTenant, None).await?;
-    let events=sqlx::query_as::<_,AuditRecord>("SELECT id,actor_id,resource_id,action,decision,reason,request_id,created_at FROM platform_audit WHERE workspace_id=$1 ORDER BY created_at DESC LIMIT 100").bind(a.workspace_id).fetch_all(&s.pool).await?;
+    let events=sqlx::query_as::<_,AuditRecord>("SELECT id,actor_id,resource_id,action,decision,reason,request_id,created_at FROM platform_audit WHERE workspace_id=$1 ORDER BY created_at DESC,id DESC LIMIT 50 OFFSET $2").bind(a.workspace_id).bind(page.offset()?).fetch_all(&s.pool).await?;
     Ok(HttpResponse::Ok().json(events))
 }
 pub fn request_key(req: &HttpRequest) -> Result<Uuid, AppError> {

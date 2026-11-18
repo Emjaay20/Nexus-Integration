@@ -1,0 +1,22 @@
+groups:
+  - name: nexus
+    rules:
+      - alert: NexusUnavailable
+        expr: up{job="nexus-rust"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: Nexus metrics target is unavailable
+          runbook_url: https://github.com/Emjaay20/Nexus-Integration/blob/main/docs/platform/OPERATIONS.md
+      - alert: NexusServerErrors
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.01) > 0.05
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: Nexus server errors exceed the provisional five percent threshold
+      - alert: NexusJobFailures
+        expr: sum(increase(workspace_job_attempts_total{outcome="failed"}[10m])) > 3
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: Repeated sourcing job failures require investigation

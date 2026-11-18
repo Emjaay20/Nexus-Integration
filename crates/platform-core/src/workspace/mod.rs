@@ -1,6 +1,7 @@
 //! Tenant-owned application services. Identity is verified at the HTTP boundary;
 //! repositories always bind the active workspace, independently of policy evaluation.
 pub mod auth;
+pub mod brief;
 pub mod jobs;
 mod routes;
 use crate::authz::{
@@ -21,6 +22,7 @@ pub struct WorkspaceState {
     pub policies: Arc<PolicyEngine>,
     pub ingest_url: String,
     pub client: reqwest::Client,
+    pub model_enabled: bool,
 }
 impl WorkspaceState {
     pub async fn connect(url: &str, secret: &str, ingest_url: String) -> Result<Self, AppError> {
@@ -35,6 +37,7 @@ impl WorkspaceState {
             .await
             .map_err(|_| AppError::Unavailable)?;
         Ok(Self {
+            model_enabled: std::env::var("NEXUS_AI_ENABLED").as_deref() == Ok("true"),
             pool,
             verifier,
             policies: Arc::new(PolicyEngine::new(workspace_policies())),
@@ -165,6 +168,8 @@ pub enum AppError {
     Invalid(String),
     #[error("Workspace queue is full. Wait for a job to finish before submitting another")]
     QueueFull,
+    #[error("Analysis quota reached. Try again in ten minutes")]
+    RateLimited,
     #[error("Workspace storage is temporarily unavailable")]
     Unavailable,
 }
@@ -181,7 +186,7 @@ impl ResponseError for AppError {
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::Conflict => StatusCode::CONFLICT,
-            Self::QueueFull => StatusCode::TOO_MANY_REQUESTS,
+            Self::QueueFull | Self::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             Self::Invalid(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
@@ -285,4 +290,22 @@ pub async fn audit(
 }
 pub fn configure(cfg: &mut web::ServiceConfig) {
     routes::configure(cfg)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Page {
+    #[serde(default)]
+    offset: i64,
+}
+impl Page {
+    pub fn offset(&self) -> Result<i64, AppError> {
+        if (0..=10000).contains(&self.offset) {
+            Ok(self.offset)
+        } else {
+            Err(AppError::Invalid(
+                "Offset must be between 0 and 10000".into(),
+            ))
+        }
+    }
 }

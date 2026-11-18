@@ -62,7 +62,7 @@ This is at-least-once processing, not exactly-once delivery. Duplicate supplier 
 
 ## Observability
 
-The BFF, Rust HTTP handlers, durable audit records, background workers, and Go ingestion carry the same `X-Request-ID`. Rust and Go emit structured logs. Tokens and BOM contents are not logged. This is request correlation; it is not an implemented OpenTelemetry/W3C span exporter.
+The BFF, Rust HTTP handlers, durable audit records, background workers, and Go ingestion carry the same `X-Request-ID` and propagate W3C `traceparent` headers. Rust, Go, and Next.js emit structured logs and optionally export redacted OpenTelemetry OTLP spans when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured (`deploy/observability/compose.yaml` provides a local Tempo/OTEL/Prometheus stack and `alerts.yml` defines Prometheus alert rules). Tokens and BOM contents are never logged or attached as span attributes.
 
 Rust exports bounded route-template HTTP metrics, latency histograms, job outcome/duration metrics, and global queue gauges. Import `deploy/observability/grafana-dashboard.json` into Grafana with a Prometheus datasource. `prometheus.yml` demonstrates scraping the local web proxy. Queue gauges represent a global database count on each replica: use `max`, not a sum across replicas.
 
@@ -80,7 +80,7 @@ make mcp-test
 
 `platform-mcp` is a real newline-delimited JSON-RPC stdio server pinned to MCP revision 2025-11-25. It supports initialize, tools/list, tools/call, resources/list/read, and ping. Tools parse BOMs, review SQL text, inspect proposed policy rules, and report configuration presence. They cannot execute SQL, run shell commands, change permissions, or read production records. SQL reviews are advisory.
 
-Use `.mcp.json.example` as an editor configuration example from this repository directory. No model provider or AI feature has been added to the application.
+Use `.mcp.json.example` as an editor configuration example from this repository directory. The protected workspace additionally includes an advisory, snapshot-scoped AI Sourcing Brief (`POST /api/workspace/jobs/{id}/brief`) backed by `GROQ_API_KEY` (or `GEMINI_API_KEY`) with workspace quotas, caching, deterministic fallback, and audit logging.
 
 ## Release verification and promotion
 

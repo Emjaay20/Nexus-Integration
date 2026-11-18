@@ -50,3 +50,12 @@ test-web:
 
 build-image:
 	docker build -f Dockerfile -t nexus-platform:verify -t nexus-integration:latest .
+
+ops-up:
+	docker compose -f deploy/observability/compose.yaml up -d
+
+ops-down:
+	docker compose -f deploy/observability/compose.yaml down
+
+ops-test:
+	docker run --rm --entrypoint promtool -v "$(CURDIR)/deploy/observability:/rules:ro" -w /rules prom/prometheus:v3.2.1 test rules alerts-test.yml

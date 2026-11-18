@@ -1,11 +1,10 @@
 //! Sourcing risk analysis and alternate-part lookup
 //!
 //! - Sourcing risk: a deterministic score from lead time, single-source and
-//!   lifecycle data, optionally refined by an LLM when an API key is set.
+//!   lifecycle data, for the public Studio. Protected model prioritization is in workspace::brief.
 //! - Alternate parts: lookup against a small built-in reference catalog.
 
 use serde::{Deserialize, Serialize};
-use std::env;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourcingRiskRequest {
@@ -74,42 +73,16 @@ pub struct AlternateMatchResponse {
     pub provider: String,
 }
 
-pub struct AiCopilotEngine {
-    client: reqwest::Client,
-    groq_api_key: Option<String>,
-    groq_model: String,
-    api_key: Option<String>,
-}
-
+pub struct AiCopilotEngine;
 impl Default for AiCopilotEngine {
     fn default() -> Self {
         Self::new()
     }
 }
-
 impl AiCopilotEngine {
     pub fn new() -> Self {
-        let groq_api_key = env::var("GROQ_API_KEY")
-            .ok()
-            .filter(|k| !k.trim().is_empty());
-        let groq_model = env::var("GROQ_MODEL")
-            .ok()
-            .filter(|m| !m.trim().is_empty())
-            .unwrap_or_else(|| "llama-3.3-70b-versatile".to_string());
-        let api_key = env::var("GEMINI_API_KEY")
-            .ok()
-            .filter(|k| !k.trim().is_empty());
-        Self {
-            client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(15))
-                .build()
-                .unwrap_or_default(),
-            groq_api_key,
-            groq_model,
-            api_key,
-        }
+        Self
     }
-
     /// Evaluates supply chain risks across PCBA components using Gemini or local intelligence.
     pub async fn analyze_sourcing_risk(&self, req: SourcingRiskRequest) -> SourcingRiskReport {
         let max_lead = req
@@ -164,26 +137,6 @@ impl AiCopilotEngine {
             });
         }
 
-        // If GROQ_API_KEY is available, augment with live Groq LLM synthesis first
-        if let Some(ref key) = self.groq_api_key {
-            if let Ok(llm_report) = self
-                .call_groq_risk_analysis(key, &req, risk_score, &risk_level, bottlenecks.clone())
-                .await
-            {
-                return llm_report;
-            }
-        }
-
-        // Fallback to GEMINI_API_KEY if configured
-        if let Some(ref key) = self.api_key {
-            if let Ok(llm_report) = self
-                .call_gemini_risk_analysis(key, &req, risk_score, &risk_level, bottlenecks.clone())
-                .await
-            {
-                return llm_report;
-            }
-        }
-
         // Production-ready heuristic fallback
         let mut recommendations = Vec::new();
         if single_source_count > 0 {
@@ -204,7 +157,7 @@ impl AiCopilotEngine {
                 obsolete_count
             ));
         }
-        recommendations.push("Cost Optimization: Sourcing passives via tape & reel consolidation yields estimated 8-14% unit BOM savings.".to_string());
+        recommendations.push("Verify current supplier quotes and engineering constraints before making a sourcing decision.".to_string());
 
         SourcingRiskReport {
             project_name: req.project_name,
@@ -215,7 +168,7 @@ impl AiCopilotEngine {
             max_lead_time_weeks: max_lead,
             lead_time_bottlenecks: bottlenecks,
             strategic_recommendations: recommendations,
-            estimated_cost_reduction_opportunity_pct: 12.5,
+            estimated_cost_reduction_opportunity_pct: 0.0,
             analyzed_by: "Rule-based heuristics (local)".to_string(),
         }
     }
@@ -234,22 +187,22 @@ impl AiCopilotEngine {
                 alternate_mpn: "GD32F405RGT6".to_string(),
                 manufacturer: "GigaDevice".to_string(),
                 package_footprint: "LQFP-64".to_string(),
-                is_pin_compatible: true,
-                availability_status: "In Stock (DigiKey/Mouser)".to_string(),
-                cost_delta_pct: -24.0,
-                match_confidence: 0.94,
-                rationale: "Drop-in ARM Cortex-M4 pin-compatible MCU with higher core clock (168MHz vs 84MHz) and identical peripheral register mapping.".to_string(),
+                is_pin_compatible: false,
+                availability_status: "Reference suggestion; qualification required".to_string(),
+                cost_delta_pct: 0.0,
+                match_confidence: 0.0,
+                rationale: "Reference candidate only. Verify package, pinout, electrical limits, firmware compatibility and current supplier availability.".to_string(),
             });
             alternates.push(AlternatePart {
                 alternate_mpn: "N32G455REL7".to_string(),
                 manufacturer: "Nations Technologies".to_string(),
                 package_footprint: "LQFP-64".to_string(),
-                is_pin_compatible: true,
+                is_pin_compatible: false,
                 availability_status: "Active".to_string(),
-                cost_delta_pct: -31.5,
-                match_confidence: 0.88,
+                cost_delta_pct: 0.0,
+                match_confidence: 0.0,
                 rationale:
-                    "Pin-compatible 32-bit MCU with hardware crypto accelerator and 512KB Flash."
+                    "Reference candidate only. Datasheet and firmware review are required; compatibility has not been qualified."
                         .to_string(),
             });
         } else if norm.contains("LM1117") || norm.contains("AMS1117") {
@@ -257,21 +210,21 @@ impl AiCopilotEngine {
                 alternate_mpn: "TLV1117-33IDCYR".to_string(),
                 manufacturer: "Texas Instruments".to_string(),
                 package_footprint: "SOT-223".to_string(),
-                is_pin_compatible: true,
-                availability_status: "Abundant Stock".to_string(),
-                cost_delta_pct: 8.0,
-                match_confidence: 0.99,
-                rationale: "Direct form-fit-function 800mA 3.3V LDO regulator with superior thermal dropout margin.".to_string(),
+                is_pin_compatible: false,
+                availability_status: "Reference suggestion; qualification required".to_string(),
+                cost_delta_pct: 0.0,
+                match_confidence: 0.0,
+                rationale: "Reference candidate only. Verify pinout, dropout, thermal limits, current rating and stability requirements.".to_string(),
             });
             alternates.push(AlternatePart {
                 alternate_mpn: "AZ1117EH-3.3TRG1".to_string(),
                 manufacturer: "Diodes Incorporated".to_string(),
                 package_footprint: "SOT-223".to_string(),
-                is_pin_compatible: true,
-                availability_status: "In Stock".to_string(),
-                cost_delta_pct: -18.0,
-                match_confidence: 0.98,
-                rationale: "Cost-reduced 1A low-dropout positive voltage regulator in industry standard SOT-223.".to_string(),
+                is_pin_compatible: false,
+                availability_status: "Reference suggestion; qualification required".to_string(),
+                cost_delta_pct: 0.0,
+                match_confidence: 0.0,
+                rationale: "Reference candidate only. Verify electrical limits, footprint, pinout and live pricing before substitution.".to_string(),
             });
         }
 
@@ -284,179 +237,6 @@ impl AiCopilotEngine {
             alternates,
             provider: "Built-in reference catalog".to_string(),
         }
-    }
-
-    fn build_risk_prompt(req: &SourcingRiskRequest) -> Result<String, anyhow::Error> {
-        Ok(format!(
-            r#"You are a senior electronics supply chain analyst. Analyze this PCBA Bill of Materials for supply chain vulnerabilities:
-Project: {}
-Target Production Batch: {} units
-Components:
-{}
-
-Return ONLY a JSON object with:
-- overall_risk_score (integer 0-100)
-- risk_level ("Low", "Medium", "High", "Critical")
-- strategic_recommendations (array of 3-4 concise, actionable engineering/sourcing recommendations referencing the exact MPNs above)
-- estimated_cost_reduction_opportunity_pct (number)
-"#,
-            req.project_name,
-            req.target_batch_size,
-            serde_json::to_string_pretty(&req.components)?
-        ))
-    }
-
-    fn build_llm_report(
-        req: &SourcingRiskRequest,
-        text_content: &str,
-        baseline_score: u32,
-        baseline_level: &str,
-        bottlenecks: Vec<LeadTimeBottleneck>,
-        analyzed_by: String,
-    ) -> Result<SourcingRiskReport, anyhow::Error> {
-        let parsed: serde_json::Value = serde_json::from_str(text_content)?;
-        let risk_score = parsed["overall_risk_score"]
-            .as_u64()
-            .map(|s| (s as u32).min(100))
-            .unwrap_or(baseline_score);
-        let risk_level = parsed["risk_level"]
-            .as_str()
-            .filter(|lvl| matches!(*lvl, "Low" | "Medium" | "High" | "Critical"))
-            .unwrap_or(baseline_level)
-            .to_string();
-        let recs: Vec<String> = parsed["strategic_recommendations"]
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .take(5)
-                    .collect()
-            })
-            .unwrap_or_default();
-        let cost_reduction = parsed["estimated_cost_reduction_opportunity_pct"]
-            .as_f64()
-            .unwrap_or(12.5)
-            .clamp(0.0, 50.0);
-
-        Ok(SourcingRiskReport {
-            project_name: req.project_name.clone(),
-            overall_risk_score: risk_score,
-            risk_level,
-            single_source_count: req.components.iter().filter(|c| c.is_single_source).count(),
-            obsolete_or_nrnd_count: req
-                .components
-                .iter()
-                .filter(|c| {
-                    let s = c.lifecycle_status.to_uppercase();
-                    s.contains("EOL") || s.contains("OBSOLETE") || s.contains("NRND")
-                })
-                .count(),
-            max_lead_time_weeks: req
-                .components
-                .iter()
-                .map(|c| c.lead_time_weeks)
-                .max()
-                .unwrap_or(0),
-            lead_time_bottlenecks: bottlenecks,
-            strategic_recommendations: recs,
-            estimated_cost_reduction_opportunity_pct: cost_reduction,
-            analyzed_by,
-        })
-    }
-
-    async fn call_groq_risk_analysis(
-        &self,
-        api_key: &str,
-        req: &SourcingRiskRequest,
-        baseline_score: u32,
-        baseline_level: &str,
-        bottlenecks: Vec<LeadTimeBottleneck>,
-    ) -> Result<SourcingRiskReport, anyhow::Error> {
-        let prompt = Self::build_risk_prompt(req)?;
-        let body = serde_json::json!({
-            "model": self.groq_model,
-            "temperature": 0.2,
-            "response_format": { "type": "json_object" },
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are an electronics sourcing analyst. Respond strictly with valid JSON."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        });
-
-        let resp = self
-            .client
-            .post("https://api.groq.com/openai/v1/chat/completions")
-            .bearer_auth(api_key)
-            .json(&body)
-            .send()
-            .await?;
-        if !resp.status().is_success() {
-            return Err(anyhow::anyhow!("Groq API error: {}", resp.status()));
-        }
-
-        let resp_json: serde_json::Value = resp.json().await?;
-        let text_content = resp_json["choices"][0]["message"]["content"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Empty Groq response"))?;
-
-        Self::build_llm_report(
-            req,
-            text_content,
-            baseline_score,
-            baseline_level,
-            bottlenecks,
-            format!("Groq ({})", self.groq_model),
-        )
-    }
-
-    async fn call_gemini_risk_analysis(
-        &self,
-        api_key: &str,
-        req: &SourcingRiskRequest,
-        baseline_score: u32,
-        baseline_level: &str,
-        bottlenecks: Vec<LeadTimeBottleneck>,
-    ) -> Result<SourcingRiskReport, anyhow::Error> {
-        let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}",
-            api_key
-        );
-
-        let prompt = Self::build_risk_prompt(req)?;
-
-        let body = serde_json::json!({
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }],
-            "generationConfig": {
-                "response_mime_type": "application/json"
-            }
-        });
-
-        let resp = self.client.post(&url).json(&body).send().await?;
-        if !resp.status().is_success() {
-            return Err(anyhow::anyhow!("Gemini API error: {}", resp.status()));
-        }
-
-        let resp_json: serde_json::Value = resp.json().await?;
-        let text_content = resp_json["candidates"][0]["content"]["parts"][0]["text"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Empty Gemini response"))?;
-
-        Self::build_llm_report(
-            req,
-            text_content,
-            baseline_score,
-            baseline_level,
-            bottlenecks,
-            "Gemini-2.5-Flash (Live Electronics AI)".to_string(),
-        )
     }
 }
 
@@ -512,7 +292,7 @@ mod tests {
 
         let res = engine.match_alternate_parts(req).await;
         assert_eq!(res.alternates.len(), 2);
-        assert!(res.alternates[0].is_pin_compatible);
+        assert!(!res.alternates[0].is_pin_compatible);
         assert_eq!(res.alternates[0].alternate_mpn, "GD32F405RGT6");
     }
 }

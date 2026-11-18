@@ -1,12 +1,13 @@
 //! Correlated request/job logging and Prometheus metrics.
 //!
 //! Uses a shared request UUID across the BFF, Rust, SQL audit, and Go ingestion.
-//! This module does not claim an OpenTelemetry or W3C exporter.
+//! Optional bounded OTLP trace export; request bodies and credentials are excluded.
 
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use std::sync::OnceLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+static TRACE_PROVIDER: OnceLock<opentelemetry_sdk::trace::SdkTracerProvider> = OnceLock::new();
 static PROMETHEUS_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();
 
 /// Initializes tracing and Prometheus metrics exporter.
@@ -21,9 +22,36 @@ pub fn init_telemetry() -> Result<(), anyhow::Error> {
         .with_thread_ids(true)
         .with_line_number(true);
 
+    use opentelemetry::trace::TracerProvider;
+    use opentelemetry_otlp::WithExportConfig;
+    opentelemetry::global::set_text_map_propagator(
+        opentelemetry_sdk::propagation::TraceContextPropagator::new(),
+    );
+    let otel = if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok() {
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_http()
+            .with_protocol(opentelemetry_otlp::Protocol::HttpBinary)
+            .with_timeout(std::time::Duration::from_secs(2))
+            .build()?;
+        let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+            .with_resource(
+                opentelemetry_sdk::Resource::builder_empty()
+                    .with_service_name("nexus-core")
+                    .build(),
+            )
+            .with_batch_exporter(exporter)
+            .build();
+        let tracer = provider.tracer("nexus-core");
+        opentelemetry::global::set_tracer_provider(provider.clone());
+        let _ = TRACE_PROVIDER.set(provider);
+        Some(tracing_opentelemetry::layer().with_tracer(tracer))
+    } else {
+        None
+    };
     let _ = tracing_subscriber::registry()
         .with(env_filter)
         .with(formatting_layer)
+        .with(otel)
         .try_init();
 
     // 2. Initialize Prometheus Metrics Recorder
@@ -116,11 +144,41 @@ where
         };
         let service = self.service.clone();
         let span = tracing::info_span!("http_request",request_id=%id,method=%method);
+        use tracing_opentelemetry::OpenTelemetrySpanExt;
+        let carrier: std::collections::HashMap<String, String> = req
+            .headers()
+            .get("traceparent")
+            .and_then(|h| h.to_str().ok())
+            .map(|h| [("traceparent".into(), h.into())].into_iter().collect())
+            .unwrap_or_default();
+        let _ = span.set_parent(opentelemetry::global::get_text_map_propagator(|p| {
+            p.extract(&carrier)
+        }));
         Box::pin(async move{let start=Instant::now();let mut response=service.call(req).await?;let route=response.request().match_pattern().unwrap_or_else(||"unmatched".into());let status=response.status().as_u16().to_string();
    metrics::counter!("http_requests_total","route"=>route.clone(),"method"=>method.clone(),"status"=>status.clone()).increment(1);
    metrics::histogram!("http_request_duration_seconds","route"=>route.clone(),"method"=>method).record(start.elapsed().as_secs_f64());
    tracing::info!(route,status,elapsed_ms=start.elapsed().as_millis(),"request completed");
    if let Ok(value)=header::HeaderValue::from_str(&id){response.headers_mut().insert(header::HeaderName::from_static("x-request-id"),value);}Ok(response)
   }.instrument(span))
+    }
+}
+
+pub fn trace_headers() -> std::collections::HashMap<String, String> {
+    use tracing_opentelemetry::OpenTelemetrySpanExt;
+    let mut carrier = std::collections::HashMap::new();
+    opentelemetry::global::get_text_map_propagator(|p| {
+        p.inject_context(&tracing::Span::current().context(), &mut carrier)
+    });
+    carrier
+}
+pub fn propagate(mut request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    for (name, value) in trace_headers() {
+        request = request.header(name, value);
+    }
+    request
+}
+pub fn shutdown_traces() {
+    if let Some(p) = TRACE_PROVIDER.get() {
+        let _ = p.shutdown_with_timeout(std::time::Duration::from_secs(2));
     }
 }

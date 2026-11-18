@@ -35,6 +35,10 @@ anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 futures-util.workspace = true
+opentelemetry = { version = "0.33.1", default-features = false, features = ["trace"] }
+opentelemetry_sdk = { version = "0.33.0", default-features = false, features = ["trace"] }
+opentelemetry-otlp = { version = "0.33.1", default-features = false, features = ["trace", "http-proto", "reqwest-blocking-client"] }
+tracing-opentelemetry = { version = "0.34.0", default-features = false }
 
 [dev-dependencies]
 actix-http = "3"

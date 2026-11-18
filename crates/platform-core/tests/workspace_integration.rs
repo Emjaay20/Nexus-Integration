@@ -96,6 +96,7 @@ impl Fixture {
         }
         Self {
             state: WorkspaceState {
+                model_enabled: false,
                 pool,
                 verifier: AssertionVerifier::new(SECRET).unwrap(),
                 policies: Arc::new(PolicyEngine::new(workspace::workspace_policies())),
@@ -714,5 +715,137 @@ async fn workspace_queue_capacity_applies_atomically_but_allows_idempotent_repla
         .await
         .unwrap();
     assert_eq!(count, 20);
+    f.done().await;
+}
+
+#[actix_rt::test]
+#[ignore = "requires isolated PostgreSQL"]
+async fn briefs_are_snapshot_scoped_cached_role_checked_and_budgeted() {
+    let f = Fixture::new().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(f.state.clone()))
+            .configure(workspace::configure),
+    )
+    .await;
+    let bom: Value = test::call_and_read_body_json(
+        &app,
+        request(
+            Method::POST,
+            "/api/v1/workspace/boms",
+            input(),
+            &f.token(f.owner),
+        ),
+    )
+    .await;
+    let job: Value = test::call_and_read_body_json(
+        &app,
+        request(
+            Method::POST,
+            "/api/v1/workspace/jobs",
+            json!({"bom_id":bom["id"],"revision":1}),
+            &f.token(f.owner),
+        ),
+    )
+    .await;
+    let id = Uuid::parse_str(job["id"].as_str().unwrap()).unwrap();
+    let path = format!("/api/v1/workspace/jobs/{id}/brief");
+    assert_eq!(
+        test::call_service(
+            &app,
+            request(Method::POST, &path, json!({}), &f.token(f.owner))
+        )
+        .await
+        .status(),
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    sqlx::query("UPDATE platform_jobs SET state='completed',progress=total,result=$1 WHERE workspace_id=$2 AND id=$3").bind(json!({"results":[{"query_mpn":"PART","data_source":"reference","required_quantity":10,"max_lead_time_weeks":0}],"summary":{"total_extended_cost_usd":null}})).bind(f.workspace).bind(id).execute(&f.state.pool).await.unwrap();
+    assert_eq!(
+        test::call_service(
+            &app,
+            request(Method::POST, &path, json!({}), &f.token(f.other))
+        )
+        .await
+        .status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        test::call_service(
+            &app,
+            request(Method::POST, &path, json!({}), &f.token(f.viewer))
+        )
+        .await
+        .status(),
+        StatusCode::FORBIDDEN
+    );
+    let report: Value = test::call_and_read_body_json(
+        &app,
+        request(Method::POST, &path, json!({}), &f.token(f.engineer)),
+    )
+    .await;
+    assert_eq!(report["mode"], "rules");
+    assert_eq!(report["fallback_reason"], "not_configured");
+    assert_eq!(report["bom_revision"], 1);
+    assert!(report["summary"]["total_extended_cost_usd"].is_null());
+    assert!(report["recommendations"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("unknown"));
+    let cached: Value = test::call_and_read_body_json(
+        &app,
+        request(Method::POST, &path, json!({}), &f.token(f.owner)),
+    )
+    .await;
+    assert_eq!(cached, report);
+    assert_eq!(
+        test::call_service(
+            &app,
+            request(Method::GET, &path, json!({}), &f.token(f.viewer))
+        )
+        .await
+        .status(),
+        StatusCode::OK
+    );
+    assert_eq!(
+        test::call_service(
+            &app,
+            request(Method::GET, &path, json!({}), &f.token(f.other))
+        )
+        .await
+        .status(),
+        StatusCode::NOT_FOUND
+    );
+    for _ in 0..4 {
+        assert_eq!(
+            test::call_service(
+                &app,
+                request(
+                    Method::POST,
+                    &path,
+                    json!({"refresh":true}),
+                    &f.token(f.owner)
+                )
+            )
+            .await
+            .status(),
+            StatusCode::OK
+        );
+    }
+    assert_eq!(
+        test::call_service(
+            &app,
+            request(
+                Method::POST,
+                &path,
+                json!({"refresh":true}),
+                &f.token(f.owner)
+            )
+        )
+        .await
+        .status(),
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    let count:i64=sqlx::query_scalar("SELECT count(*) FROM platform_audit WHERE workspace_id=$1 AND action='job.brief.requested'").bind(f.workspace).fetch_one(&f.state.pool).await.unwrap();
+    assert_eq!(count, 5);
     f.done().await;
 }

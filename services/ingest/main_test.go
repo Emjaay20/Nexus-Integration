@@ -172,3 +172,53 @@ func TestNexarGraphQLReturnsLiveMultiSellerOffers(t *testing.T) {
 		t.Fatalf("expected 2 live sellers from nexar, got %+v", part)
 	}
 }
+
+func TestNexarCachesTokensAndRequiresExplicitUSDCurrency(t *testing.T) {
+	s := NewIngestServer()
+	s.nexarClientID = "fixture"
+	s.nexarSecret = "fixture"
+	tokens := 0
+	s.httpClient = &http.Client{Transport: testTransport(func(r *http.Request) (*http.Response, error) {
+		body := `{"access_token":"fixture-token","expires_in":86400}`
+		if r.URL.Host == "identity.nexar.com" {
+			tokens++
+			_ = r.ParseForm()
+			if r.Form.Get("scope") != "supply.domain" {
+				t.Error("missing supply scope")
+			}
+		} else {
+			if r.Header.Get("Authorization") != "Bearer fixture-token" {
+				t.Error("missing bearer token")
+			}
+			body = `{"data":{"supSearchMpn":{"results":[{"part":{"mpn":"PART","sellers":[{"company":{"name":"Supplier"},"offers":[{"inventoryLevel":5,"moq":1,"prices":[{"quantity":1,"price":4,"currency":"EUR"},{"quantity":1,"price":5,"currency":""},{"quantity":1,"price":6,"currency":"USD"}]}]}]}}]}}}`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}
+	for i := 0; i < 2; i++ {
+		offers, err := s.queryNexarLive(context.Background(), "PART")
+		if err != nil || len(offers) != 1 || len(offers[0].PriceBreaks) != 1 || offers[0].PriceBreaks[0].UnitPrice != 6 {
+			t.Fatalf("currency contract failed: %v %+v", err, offers)
+		}
+		if offers[0].LifecycleStatus != "Unknown" || offers[0].LeadTimeWeeks != 0 {
+			t.Fatal("invented metadata")
+		}
+	}
+	if tokens != 1 {
+		t.Fatalf("expected cached token, fetched %d", tokens)
+	}
+}
+func TestNexarGraphQLErrorsAreFailures(t *testing.T) {
+	s := NewIngestServer()
+	s.nexarClientID = "fixture"
+	s.nexarSecret = "fixture"
+	s.httpClient = &http.Client{Transport: testTransport(func(r *http.Request) (*http.Response, error) {
+		body := `{"access_token":"fixture-token"}`
+		if r.URL.Host == "api.nexar.com" {
+			body = `{"errors":[{"message":"quota"}],"data":null}`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}
+	if _, err := s.queryNexarLive(context.Background(), "PART"); err == nil {
+		t.Fatal("GraphQL errors must not be interpreted as a successful empty search")
+	}
+}

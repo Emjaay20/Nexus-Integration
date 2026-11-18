@@ -10,7 +10,7 @@ if not secret_file.exists():
  with os.fdopen(fd,'w') as file:file.write(secrets.token_urlsafe(48))
 secret=secret_file.read_text().strip()
 env=os.environ.copy();env.update(HOST='127.0.0.1',INGEST_HOST='127.0.0.1',DATABASE_URL='postgresql://nexus_dev:nexus_local_only@127.0.0.1:15432/nexus_dev',AUTH_SECRET=secret,CORE_AUTH_SECRET=secret,AUTH_URL='http://localhost:3100',RUST_BACKEND_URL='http://127.0.0.1:18088',GO_INGEST_URL='http://127.0.0.1:18090',NEXT_PUBLIC_PUSHER_KEY='',PUSHER_APP_ID='',PUSHER_SECRET='',NEXT_PUBLIC_PUSHER_CLUSTER='')
-for key in ['DIGIKEY_CLIENT_ID','DIGIKEY_CLIENT_SECRET','MOUSER_API_KEY','NEXAR_CLIENT_ID','NEXAR_CLIENT_SECRET','GEMINI_API_KEY','GITHUB_CLIENT_ID','GITHUB_CLIENT_SECRET']:env[key]=''
+for key in ['DIGIKEY_CLIENT_ID','DIGIKEY_CLIENT_SECRET','MOUSER_API_KEY','NEXAR_CLIENT_ID','NEXAR_CLIENT_SECRET','GEMINI_API_KEY','GROQ_API_KEY','GITHUB_CLIENT_ID','GITHUB_CLIENT_SECRET']:env[key]=''
 children=[]
 def stop(*_):
  for process in children:

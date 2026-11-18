@@ -1,0 +1,15 @@
+rule_files: [alerts.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="nexus-rust"}'
+        values: '0 0 0'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: NexusUnavailable
+        exp_alerts:
+          - exp_labels: {job: nexus-rust, severity: critical}
+            exp_annotations:
+              summary: Nexus metrics target is unavailable
+              runbook_url: https://github.com/Emjaay20/Nexus-Integration/blob/main/docs/platform/OPERATIONS.md

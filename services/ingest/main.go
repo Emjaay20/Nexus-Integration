@@ -13,10 +13,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -106,6 +109,10 @@ type IngestServer struct {
 	mouserApiKey    string
 	nexarClientID   string
 	nexarSecret     string
+	nexarTokenMu    sync.Mutex
+	nexarToken      string
+	nexarTokenUntil time.Time
+	nexarRetryAfter time.Time
 }
 
 func NewIngestServer() *IngestServer {
@@ -155,6 +162,8 @@ func unitPriceForQuantity(breaks []PriceBreak, qty int) float64 {
 
 func (s *IngestServer) enrichSinglePart(ctx context.Context, rawMpn string, targetQty int) PartEnrichmentResult {
 	start := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	s.partsEnriched.Add(1)
 	norm := NormalizeMpn(rawMpn)
 	if targetQty <= 0 {
@@ -500,31 +509,58 @@ func (s *IngestServer) queryDigiKeyLive(ctx context.Context, mpn string, targetQ
 	return []DistributorOffer{*best}, nil
 }
 
-func (s *IngestServer) queryNexarLive(ctx context.Context, mpn string) ([]DistributorOffer, error) {
-	s.nexarCalls.Add(1)
+func (s *IngestServer) nexarAccessToken(ctx context.Context) (string, error) {
+	s.nexarTokenMu.Lock()
+	defer s.nexarTokenMu.Unlock()
+	if time.Now().Before(s.nexarRetryAfter) {
+		return "", fmt.Errorf("nexar request cooling down")
+	}
+	if time.Now().Before(s.nexarTokenUntil) && s.nexarToken != "" {
+		return s.nexarToken, nil
+	}
+	s.nexarRetryAfter = time.Now().Add(15 * time.Second)
 	form := url.Values{}
 	form.Set("grant_type", "client_credentials")
 	form.Set("client_id", s.nexarClientID)
 	form.Set("client_secret", s.nexarSecret)
+	form.Set("scope", "supply.domain")
 
 	tokenReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://identity.nexar.com/connect/token", strings.NewReader(form.Encode()))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	tokenReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	tokenResp, err := s.httpClient.Do(tokenReq)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer tokenResp.Body.Close()
 	if tokenResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("nexar token status %d", tokenResp.StatusCode)
+		return "", fmt.Errorf("nexar token status %d", tokenResp.StatusCode)
 	}
 	var tok struct {
 		AccessToken string `json:"access_token"`
+		ExpiresIn   int64  `json:"expires_in"`
 	}
-	if err := json.NewDecoder(tokenResp.Body).Decode(&tok); err != nil || tok.AccessToken == "" {
-		return nil, fmt.Errorf("invalid nexar token")
+	if err := json.NewDecoder(io.LimitReader(tokenResp.Body, 65536)).Decode(&tok); err != nil || tok.AccessToken == "" {
+		return "", fmt.Errorf("invalid nexar token")
+	}
+
+	lifetime := tok.ExpiresIn
+	if lifetime <= 60 || lifetime > 86400 {
+		lifetime = 300
+	}
+	s.nexarToken = tok.AccessToken
+	s.nexarTokenUntil = time.Now().Add(time.Duration(lifetime-30) * time.Second)
+	s.nexarRetryAfter = time.Time{}
+	return tok.AccessToken, nil
+}
+
+func (s *IngestServer) queryNexarLive(ctx context.Context, mpn string) ([]DistributorOffer, error) {
+	s.nexarCalls.Add(1)
+	token, err := s.nexarAccessToken(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	gql := `query SearchMpn($q: String!) {
@@ -534,7 +570,7 @@ func (s *IngestServer) queryNexarLive(ctx context.Context, mpn string) ([]Distri
 					mpn
 					shortDescription
 					manufacturer { name }
-					sellers {
+					sellers(authorizedOnly: true) {
 						company { name }
 						offers {
 							sku
@@ -555,19 +591,35 @@ func (s *IngestServer) queryNexarLive(ctx context.Context, mpn string) ([]Distri
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusTooManyRequests {
+		s.nexarTokenMu.Lock()
+		if resp.StatusCode == http.StatusUnauthorized {
+			s.nexarToken = ""
+			s.nexarTokenUntil = time.Time{}
+		}
+		if resp.StatusCode == http.StatusTooManyRequests {
+			seconds, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
+			if seconds < 1 || seconds > 60 {
+				seconds = 15
+			}
+			s.nexarRetryAfter = time.Now().Add(time.Duration(seconds) * time.Second)
+		}
+		s.nexarTokenMu.Unlock()
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("nexar graphql status %d", resp.StatusCode)
 	}
 
 	var parsed struct {
-		Data struct {
+		Errors []json.RawMessage `json:"errors"`
+		Data   struct {
 			SupSearchMpn struct {
 				Results []struct {
 					Part struct {
@@ -596,23 +648,29 @@ func (s *IngestServer) queryNexarLive(ctx context.Context, mpn string) ([]Distri
 			} `json:"supSearchMpn"`
 		} `json:"data"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&parsed); err != nil {
 		return nil, err
 	}
 
+	if len(parsed.Errors) > 0 {
+		return nil, fmt.Errorf("nexar GraphQL errors")
+	}
 	var out []DistributorOffer
 	nowStr := time.Now().UTC().Format(time.RFC3339)
 	for _, res := range parsed.Data.SupSearchMpn.Results {
 		p := res.Part
+		if NormalizeMpn(p.Mpn) != NormalizeMpn(mpn) {
+			continue
+		}
 		for _, seller := range p.Sellers {
 			for _, offer := range seller.Offers {
 				var breaks []PriceBreak
 				for _, pr := range offer.Prices {
-					if pr.Price > 0 && (pr.Currency == "" || strings.EqualFold(pr.Currency, "USD")) {
+					if pr.Price > 0 && strings.EqualFold(pr.Currency, "USD") && pr.Quantity > 0 && !math.IsNaN(pr.Price) && !math.IsInf(pr.Price, 0) {
 						breaks = append(breaks, PriceBreak{Qty: pr.Quantity, UnitPrice: pr.Price})
 					}
 				}
-				if len(breaks) == 0 && offer.InventoryLevel == 0 {
+				if offer.InventoryLevel < 0 || (len(breaks) == 0 && offer.InventoryLevel == 0) {
 					continue
 				}
 				moq := offer.Moq
@@ -625,8 +683,8 @@ func (s *IngestServer) queryNexarLive(ctx context.Context, mpn string) ([]Distri
 					Mpn:             p.Mpn,
 					Manufacturer:    p.Manufacturer.Name,
 					Description:     p.ShortDescription,
-					Package:         "Standard",
-					LifecycleStatus: "Active",
+					Package:         "Unknown",
+					LifecycleStatus: "Unknown",
 					StockQty:        offer.InventoryLevel,
 					Moq:             moq,
 					LeadTimeWeeks:   0,
@@ -1173,10 +1231,21 @@ func (s *IngestServer) Routes() http.Handler {
 	mux.HandleFunc("/metrics", s.handleMetrics)
 	mux.HandleFunc("/api/v1/ingest/enrich-batch", s.handleEnrichBatch)
 	mux.HandleFunc("/api/v1/ingest/catalog", s.handleCatalogList)
-	return mux
+	return traceHandler(mux)
 }
 
 func main() {
+	shutdownTrace, err := initTracing(context.Background())
+	if err != nil {
+		slog.Error("trace export configuration failed")
+		os.Exit(1)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = shutdownTrace(ctx)
+	}()
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
@@ -1195,8 +1264,17 @@ func main() {
 	}
 	addr := host + ":" + port
 	slog.Info("starting nexus-go-ingest service", "addr", addr)
-	if err := http.ListenAndServe(addr, srv.Routes()); err != nil {
-		slog.Error("server exited", "err", err)
-		os.Exit(1)
+	server := &http.Server{Addr: addr, Handler: srv.Routes(), ReadHeaderTimeout: 5 * time.Second}
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-stop
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = server.Shutdown(ctx)
+	}()
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("server exited")
+		return
 	}
 }

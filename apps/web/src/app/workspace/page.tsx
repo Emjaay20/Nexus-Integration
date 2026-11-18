@@ -63,21 +63,10 @@ type Job = {
 };
 
 type SourcingBrief = {
-  project_name: string;
-  overall_risk_score: number;
-  risk_level: string;
-  single_source_count: number;
-  obsolete_or_nrnd_count: number;
-  max_lead_time_weeks: number;
-  lead_time_bottlenecks: {
-    mpn: string;
-    lead_time_weeks: number;
-    impact: string;
-    recommended_action: string;
-  }[];
-  strategic_recommendations: string[];
-  estimated_cost_reduction_opportunity_pct: number;
-  analyzed_by: string;
+  job_id: string; bom_revision: number; generated_at: string;
+  mode: "rules" | "model_prioritized"; provider: string; fallback_reason: string | null;
+  total_parts: number; candidate_count: number; model_candidate_count: number;
+  recommendations: { id: string; row: number; mpn: string; message: string }[];
 };
 type Member = { user_id: string; role: string };
 type Audit = {
@@ -129,6 +118,7 @@ export default function Workspace() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [audit, setAudit] = useState<Audit[]>([]);
+  const [page, setPage] = useState(0);
   const [tab, setTab] = useState("boms");
   const [selected, setSelected] = useState<Bom | null>(null);
   const [name, setName] = useState("Controller board");
@@ -150,15 +140,15 @@ export default function Workspace() {
     const c = await api<Context>("context");
     setContext(c);
     const [bs, js] = await Promise.all([
-      api<BomSummary[]>("boms"),
-      api<Job[]>("jobs"),
+      api<BomSummary[]>(`boms?offset=${page * 50}`),
+      api<Job[]>(`jobs?offset=${page * 50}`),
     ]);
     setBoms(bs);
     setJobs(js);
     if (c.actor.role === "owner") {
       const [ms, as] = await Promise.all([
         api<Member[]>("members"),
-        api<Audit[]>("audit"),
+        api<Audit[]>(`audit?offset=${page * 50}`),
       ]);
       setMembers(ms);
       setAudit(as);
@@ -166,7 +156,7 @@ export default function Workspace() {
       setMembers([]);
       setAudit([]);
     }
-  }, []);
+  }, [page]);
   useEffect(() => {
     refresh()
       .catch((e) => setError(e.message))
@@ -179,12 +169,12 @@ export default function Workspace() {
     if (!hasActiveJobs) return;
     const interval = setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      api<Job[]>("jobs")
+      api<Job[]>(`jobs?offset=${page * 50}`)
         .then(setJobs)
         .catch((e) => setError(e.message));
     }, 2000);
     return () => clearInterval(interval);
-  }, [hasActiveJobs]);
+  }, [hasActiveJobs, page]);
   async function act(work: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -258,6 +248,8 @@ export default function Workspace() {
                       });
                       setSelected(null);
                       setResultJob(null);
+                      setPage(0);
+                      setBrief(null);
                       setTab("boms");
                       await refresh();
                     })
@@ -304,6 +296,7 @@ export default function Workspace() {
             key={value}
             onClick={() => {
               setTab(value);
+              setPage(0);
               setError("");
             }}
           >
@@ -344,7 +337,7 @@ export default function Workspace() {
                   <h2 style={{ fontSize: 23 }}>
                     Saved BOMs{" "}
                     <span className="sub" style={{ fontWeight: 400 }}>
-                      Latest 50
+                      Page {page + 1}
                     </span>
                   </h2>
                   <button
@@ -528,6 +521,7 @@ export default function Workspace() {
                             act(async () => {
                               setBrief(null);
                               setResultJob(await api<Job>(`jobs/${job.id}`));
+                              try { setBrief(await api<SourcingBrief>(`jobs/${job.id}/brief`)); } catch { /* A brief is optional until generated. */ }
                             })
                           }
                         >
@@ -559,7 +553,7 @@ export default function Workspace() {
                 <section className="result-section">
                   <div className="section-head">
                     <h3>Results · saved revision {resultJob.bom_revision}</h3>
-                    {resultJob.state === "completed" && (
+                    {canWrite && resultJob.state === "completed" && (
                       <button
                         className="btn btn-secondary btn-sm"
                         disabled={busy}
@@ -568,7 +562,7 @@ export default function Workspace() {
                             const report = await api<SourcingBrief>(
                               `jobs/${resultJob.id}/brief`,
                               "POST",
-                              {},
+                              {refresh: Boolean(brief)},
                             );
                             setBrief(report);
                           })
@@ -579,44 +573,19 @@ export default function Workspace() {
                         ) : (
                           <ArrowRight size={14} />
                         )}{" "}
-                        Generate AI Sourcing Brief
+                        {brief ? "Refresh sourcing brief" : "Generate sourcing brief"}
                       </button>
                     )}
                   </div>
-                  {brief && (
-                    <div className="note" style={{ marginTop: 16 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <strong>
-                          Sourcing Risk Brief · {brief.risk_level} (
-                          {brief.overall_risk_score}/100)
-                        </strong>
-                        <span className="sub">{brief.analyzed_by}</span>
-                      </div>
-                      {brief.strategic_recommendations.length > 0 && (
-                        <ul style={{ marginTop: 10, paddingLeft: 18 }}>
-                          {brief.strategic_recommendations.map((rec, idx) => (
-                            <li key={idx} style={{ marginBottom: 4 }}>
-                              {rec}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {brief.lead_time_bottlenecks.length > 0 && (
-                        <p className="sub" style={{ marginTop: 8 }}>
-                          Bottlenecks:{" "}
-                          {brief.lead_time_bottlenecks
-                            .map((b) => `${b.mpn} (${b.lead_time_weeks} wks)`)
-                            .join(", ")}
-                        </p>
-                      )}
-                    </div>
+                  {brief && brief.job_id === resultJob.id && (
+                    <section className="note" aria-label="Sourcing brief" style={{ marginTop: 16 }}>
+                      <h4>Evidence-based sourcing brief · revision {brief.bom_revision}</h4>
+                      <p>{brief.mode === "model_prioritized" ? `Prioritized with ${brief.provider}; all displayed findings come from saved evidence.` : "Rule-based review. No model-generated claims."}</p>
+                      {brief.fallback_reason && <p>{brief.fallback_reason === "not_configured" ? "A model provider is not configured. The deterministic review remains available." : "Model prioritization was unavailable or its output was rejected. Showing the deterministic review."}</p>}
+                      <p>{brief.total_parts} parts checked. {brief.candidate_count} findings; up to {brief.model_candidate_count} candidates supplied for model prioritization. Showing {brief.recommendations.length} priorities. Generated {new Date(brief.generated_at).toLocaleString()}.</p>
+                      {brief.recommendations.length ? <ol style={{ marginTop: 10, paddingLeft: 20 }}>{brief.recommendations.map(rec => <li key={rec.id} style={{ marginBottom: 12 }}><strong>Line {rec.row} · {rec.mpn}</strong><br />{rec.message}</li>)}</ol> : <p>No configured rules flagged a finding. This does not establish zero risk or engineering qualification.</p>}
+                      <p>Advisory only. Prices, quantities and scores remain the saved Rust-calculated values. Supplier changes require a new sourcing job. An alternate always needs engineering approval.</p>
+                    </section>
                   )}
                   {resultJob.result.summary && (
                     <div className="metric-row" style={{ marginTop: 16 }}>
@@ -796,6 +765,7 @@ export default function Workspace() {
               )}
             </section>
           )}
+          {tab !== "members" && <nav aria-label="Workspace pages" style={{display:"flex",gap:12,alignItems:"center",marginTop:24}}><button className="btn btn-secondary btn-sm" disabled={page===0 || busy} onClick={()=>setPage(page-1)}>Previous</button><span>Page {page+1}</span><button className="btn btn-secondary btn-sm" disabled={busy || page>=200 || (tab==="boms"?boms.length:tab==="jobs"?jobs.length:audit.length)<50} onClick={()=>setPage(page+1)}>Next</button></nav>}
         </div>
       )}
     </main>

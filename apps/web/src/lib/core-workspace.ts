@@ -1,4 +1,5 @@
 import "server-only";
+import {context, propagation} from "@opentelemetry/api";
 import { allowsMutation } from "@/lib/request-origin";
 import { randomUUID } from "node:crypto";
 import { createCoreAssertion, isWorkspaceUserId } from "@/lib/core-assertion";
@@ -90,12 +91,17 @@ export async function forwardWorkspace(
         { error: "Request exceeds 2MB" },
         { status: 413, headers },
       );
+    const traceHeaders: Record<string,string> = {};
+    propagation.inject(context.active(), traceHeaders);
+    const query = request && method === "GET" && ["boms", "jobs", "audit"].includes(path) ? new URL(request.url).searchParams.get("offset") : null;
+    const suffix = query === null ? "" : `?offset=${encodeURIComponent(query)}`;
     const upstream = await fetch(
-      `${process.env.RUST_BACKEND_URL || "http://127.0.0.1:8088"}/api/v1/workspace/${path}`,
+      `${process.env.RUST_BACKEND_URL || "http://127.0.0.1:8088"}/api/v1/workspace/${path}${suffix}`,
       {
         method,
         headers: {
           ...headers,
+          ...traceHeaders,
           Authorization: `Bearer ${assertion}`,
           "Content-Type": "application/json",
           ...(request?.headers.get("idempotency-key")

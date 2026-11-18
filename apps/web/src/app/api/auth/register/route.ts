@@ -1,3 +1,4 @@
+import { consumeLimit, limitedJson } from "@/lib/request-limits";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { seedUserData } from "@/db/seed";
@@ -5,7 +6,8 @@ import crypto from "node:crypto";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    if (!await consumeLimit("registration", "global", 30, 3600)) return NextResponse.json({error:"Registration limit reached. Try again later."},{status:429,headers:{"Retry-After":"3600"}});
+    const body = await limitedJson(request) as Record<string,unknown>;
     const email =
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -25,7 +27,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     const salt = crypto.randomBytes(16).toString("hex");
-    const hash = `${salt}:${crypto.scryptSync(password, salt, 64).toString("hex")}`;
+    const hash = `${salt}:${(await new Promise<Buffer>((resolve,reject)=>crypto.scrypt(password,salt,64,(error,key)=>error?reject(error):resolve(key)))).toString("hex")}`;
     const id = crypto.randomUUID();
     const tenantId = `workspace-${id}`;
     const user = await db.transaction(async (client) => {
@@ -52,6 +54,7 @@ export async function POST(request: Request) {
     await seedUserData(user.id);
     return NextResponse.json({ success: true, user }, { status: 201 });
   } catch (error) {
+    if (error instanceof SyntaxError || (error instanceof Error && ["EMPTY_BODY","BODY_LIMIT"].includes(error.message))) return NextResponse.json({error:"Invalid or oversized registration request"},{status:error instanceof Error && error.message==="BODY_LIMIT"?413:400});
     if (
       error instanceof Error &&
       (error.message === "ACCOUNT_EXISTS" ||

@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 FROM golang:1.22-bookworm AS go-builder
 WORKDIR /go/src/ingest
-COPY services/ingest/go.mod ./
+COPY services/ingest/go.mod services/ingest/go.sum ./
 COPY services/ingest/*.go ./
-RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /usr/local/bin/nexus-ingest .
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /usr/local/bin/nexus-ingest .
 
 FROM rust:bookworm AS rust-builder
 WORKDIR /usr/src/nexus

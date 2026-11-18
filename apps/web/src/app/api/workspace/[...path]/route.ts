@@ -2,7 +2,7 @@ import { forwardWorkspace } from "@/lib/core-workspace";
 export const dynamic = "force-dynamic";
 const id = "[0-9a-fA-F-]{36}";
 const allowed = new RegExp(
-  `^(context|boms(?:/${id})?|members(?:/${id})?|audit|jobs(?:/${id}(?:/cancel)?)?)$`,
+  `^(context|boms(?:/${id})?|members(?:/${id})?|audit|jobs(?:/${id}(?:/(?:cancel|brief))?)?)$`,
 );
 async function proxy(
   request: Request,

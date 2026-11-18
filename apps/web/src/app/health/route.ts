@@ -26,6 +26,7 @@ export async function GET() {
         rust_platform_core: rust ? "online" : "offline",
         go_ingest_worker: go ? "online" : "offline",
       },
+      ai: { enabled: process.env.NEXUS_AI_ENABLED === "true", groq_configured: Boolean(process.env.GROQ_API_KEY), gemini_configured: Boolean(process.env.GEMINI_API_KEY) },
       suppliers: go?.live_connectors || {},
       timestamp: new Date().toISOString(),
     },

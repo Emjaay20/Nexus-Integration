@@ -139,5 +139,6 @@ async fn main() -> std::io::Result<()> {
     for worker in workers {
         worker.abort();
     }
+    nexus_platform_core::telemetry::shutdown_traces();
     result
 }
