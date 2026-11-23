@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import { PartsTable, type Part } from "@/components/platform/Enrichment";
+import { SourcingEvidence } from "@/components/platform/SourcingEvidence";
 
 type Context = {
   actor: { user_id: string; workspace_id: string; role: string };
@@ -278,6 +279,11 @@ export default function Workspace() {
         >
           <RefreshCw size={14} /> Refresh
         </button>
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <Link className="btn btn-secondary" href="/regional-sourcing">
+          Regional sourcing &amp; landed-cost comparison
+        </Link>
       </div>
       <nav className="workspace-nav" aria-label="BOM workspace">
         {[
@@ -631,6 +637,7 @@ export default function Workspace() {
                     labeled Live API represent supplier responses. Quantity on
                     each row determines its price break.
                   </p>
+                  <SourcingEvidence key={resultJob.id} current={resultJob} older={jobs.filter(j=>j.bom_id===resultJob.bom_id&&j.state==='completed'&&j.bom_revision<resultJob.bom_revision)} load={id=>api<Job>(`jobs/${id}`)} />
                   <PartsTable parts={resultJob.result.results} />
                 </section>
               )}

@@ -19,7 +19,7 @@ const architecture = [
   {
     tag: "02 / GO · DISTRIBUTOR INGESTION",
     title: "Supplier lookups, without the bottleneck.",
-    body: "A bounded worker pool queries configured DigiKey and Mouser connections in parallel. Every result tells you whether it came from a live supplier or the reference catalog.",
+    body: "A bounded worker pool queries configured DigiKey, Mouser and Nexar connections in parallel. Every result tells you whether it came from a live supplier or the reference catalog.",
     meta: "Go · Concurrent workers",
     href: "/platform-core",
     link: "Run an enrichment",
@@ -72,7 +72,7 @@ export default function Home() {
             <div className="stat">
               <b>Parallel lookups</b>
               <span>
-                DigiKey & Mouser APIs
+                DigiKey, Mouser & Nexar APIs
                 <br />
                 when credentials are configured.
               </span>

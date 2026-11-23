@@ -11,13 +11,37 @@ use crate::authz::{
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgPoolOptions, FromRow, PgPool, Postgres, Transaction};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use sqlx::{
+    postgres::{PgConnectOptions, PgPoolOptions},
+    FromRow, PgPool, Postgres, Transaction,
+};
+use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
 use uuid::Uuid;
+
+fn uses_transaction_pooler(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    lower.contains("-pooler.")
+        || lower.contains("pgbouncer=true")
+        || lower.contains(":6543/")
+        || lower.ends_with(":6543")
+}
+
+/// Builds PostgreSQL connection options suitable for both direct connections and
+/// PgBouncer transaction poolers (such as Neon `-pooler` endpoints), where
+/// server-side named prepared statement caches fail across migrations or backend swaps.
+pub fn connect_options_for_url(url: &str) -> Result<PgConnectOptions, AppError> {
+    let opts = PgConnectOptions::from_str(url).map_err(|_| AppError::Unavailable)?;
+    Ok(if uses_transaction_pooler(url) {
+        opts.statement_cache_capacity(0)
+    } else {
+        opts
+    })
+}
 
 #[derive(Clone)]
 pub struct WorkspaceState {
     pub pool: PgPool,
+    pub worker_health: Arc<jobs::WorkerHealth>,
     pub verifier: auth::AssertionVerifier,
     pub policies: Arc<PolicyEngine>,
     pub ingest_url: String,
@@ -27,10 +51,12 @@ pub struct WorkspaceState {
 impl WorkspaceState {
     pub async fn connect(url: &str, secret: &str, ingest_url: String) -> Result<Self, AppError> {
         let verifier = auth::AssertionVerifier::new(secret)?;
+        let connect_options = connect_options_for_url(url)?;
         let pool = PgPoolOptions::new()
             .max_connections(8)
-            .acquire_timeout(Duration::from_secs(5))
-            .connect(url)
+            .acquire_timeout(Duration::from_secs(15))
+            .idle_timeout(Duration::from_secs(300))
+            .connect_with(connect_options)
             .await?;
         sqlx::migrate!("./migrations")
             .run(&pool)
@@ -39,6 +65,7 @@ impl WorkspaceState {
         Ok(Self {
             model_enabled: std::env::var("NEXUS_AI_ENABLED").as_deref() == Ok("true"),
             pool,
+            worker_health: Arc::new(jobs::WorkerHealth::default()),
             verifier,
             policies: Arc::new(PolicyEngine::new(workspace_policies())),
             ingest_url,
@@ -307,5 +334,38 @@ impl Page {
                 "Offset must be between 0 and 10000".into(),
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_transaction_pooler_urls() {
+        assert!(uses_transaction_pooler(
+            "postgresql://role:pass@ep-fancy-bird-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require"
+        ));
+        assert!(uses_transaction_pooler(
+            "postgresql://role:pass@db.example.com:6543/app"
+        ));
+        assert!(uses_transaction_pooler(
+            "postgresql://role:pass@db.example.com:5432/app?pgbouncer=true"
+        ));
+        assert!(!uses_transaction_pooler(
+            "postgresql://role:pass@127.0.0.1:5432/nexus_platform_test"
+        ));
+    }
+
+    #[test]
+    fn connect_options_accepts_direct_and_pooler_urls() {
+        assert!(connect_options_for_url(
+            "postgresql://role:pass@ep-fancy-bird-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require"
+        )
+        .is_ok());
+        assert!(connect_options_for_url(
+            "postgresql://role:pass@127.0.0.1:5432/nexus_platform_test"
+        )
+        .is_ok());
     }
 }

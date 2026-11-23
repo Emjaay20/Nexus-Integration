@@ -96,6 +96,7 @@ impl Fixture {
         }
         Self {
             state: WorkspaceState {
+                worker_health: Arc::new(jobs::WorkerHealth::default()),
                 model_enabled: false,
                 pool,
                 verifier: AssertionVerifier::new(SECRET).unwrap(),
@@ -847,5 +848,71 @@ async fn briefs_are_snapshot_scoped_cached_role_checked_and_budgeted() {
     );
     let count:i64=sqlx::query_scalar("SELECT count(*) FROM platform_audit WHERE workspace_id=$1 AND action='job.brief.requested'").bind(f.workspace).fetch_one(&f.state.pool).await.unwrap();
     assert_eq!(count, 5);
+    f.done().await;
+}
+
+#[actix_rt::test]
+#[ignore = "requires isolated PostgreSQL"]
+async fn readiness_detects_claim_failure_and_recovers() {
+    let f = Fixture::new().await;
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(f.state.clone()))
+            .configure(workspace::configure),
+    )
+    .await;
+    let request = || test::TestRequest::get().uri("/ready").to_request();
+    assert_eq!(
+        test::call_service(&app, request()).await.status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    let workers = jobs::start_workers(f.state.clone());
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while f.state.worker_health.ready_count() != jobs::WORKER_COUNT {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        test::call_service(&app, request()).await.status(),
+        StatusCode::OK
+    );
+    // Private disposable test schema only; no production schema is touched.
+    sqlx::query("ALTER TABLE platform_jobs RENAME TO platform_jobs_unavailable")
+        .execute(&f.state.pool)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while f.state.worker_health.ready_count() != 0 {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        test::call_service(&app, request()).await.status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    sqlx::query("ALTER TABLE platform_jobs_unavailable RENAME TO platform_jobs")
+        .execute(&f.state.pool)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while f.state.worker_health.ready_count() != jobs::WORKER_COUNT {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        test::call_service(&app, request()).await.status(),
+        StatusCode::OK
+    );
+    for worker in workers {
+        worker.abort();
+        let _ = worker.await;
+    }
+    drop(app);
     f.done().await;
 }

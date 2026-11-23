@@ -8,7 +8,7 @@ const endpoints = [
   {
     path: "/api/platform-core/api/v1/bom/enrich",
     method: "POST",
-    text: "Enrich 1–500 manufacturer part numbers. Returns live/reference provenance, warnings, offers, and heuristic risk scores when sufficient inputs exist.",
+    text: "Enrich 1–25 manufacturer part numbers in public Studio. Larger saved BOMs use authenticated workspace jobs. Returns live/reference provenance, warnings, offers, and heuristic risk scores when sufficient inputs exist.",
     body: { mpns: ["STM32F401RET6"], target_batch_size: 1000 },
   },
   {

@@ -1,0 +1,12 @@
+"use client";
+import {useState} from 'react';
+import {complete,evidenceCsv,quantityDiff,type Snapshot} from '@/lib/sourcing-evidence';
+export function SourcingEvidence({current,older,load}:{current:Snapshot;older:{id:string;bom_revision:number}[];load:(id:string)=>Promise<Snapshot>}){
+ const [selected,setSelected]=useState('');const [diff,setDiff]=useState<ReturnType<typeof quantityDiff>|null>(null);const [error,setError]=useState('');const [busy,setBusy]=useState(false);
+ if(!complete(current))return null;
+ function download(){try{const url=URL.createObjectURL(new Blob([evidenceCsv(current)],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`nexus-sourcing-${current.id}-r${current.bom_revision}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch{setError('Unable to export saved evidence');}}
+ async function compare(){setBusy(true);setError('');setDiff(null);try{setDiff(quantityDiff(await load(selected),current));}catch(e){setError(e instanceof Error?e.message:'Comparison unavailable');}finally{setBusy(false);}}
+ return <section className="note" style={{marginTop:16}}><h4>Procurement evidence</h4><p>Download saved supplier-response observations. Reference data is illustrative; prices exclude taxes, freight and approval. This is not a purchase order or engineering qualification.</p><button className="btn btn-secondary btn-sm" onClick={download}>Download sourcing evidence CSV</button>
+ {older.length>0&&<div style={{marginTop:16}}><label>Compare quantities with an earlier sourced revision <select value={selected} disabled={busy} onChange={e=>{setSelected(e.target.value);setDiff(null);setError('')}}><option value="">Select completed job</option>{older.map(j=><option key={j.id} value={j.id}>Revision {j.bom_revision} · {j.id.slice(0,8)}</option>)}</select></label><button className="btn btn-secondary btn-sm" disabled={!selected||busy} onClick={()=>void compare()}>{busy?'Comparing…':'Compare'}</button></div>}
+ {error&&<p role="alert">{error}</p>}{diff&&<><p>Quantity changes grouped by requested MPN. This is not a design or electrical compatibility diff.</p>{diff.length===0?<p>No quantity differences.</p>:<div className="table-wrap"><table><thead><tr><th>MPN</th><th>Earlier</th><th>Current</th><th>Change</th></tr></thead><tbody>{diff.map(d=><tr key={d.part}><td>{d.part}</td><td>{d.before}</td><td>{d.after}</td><td>{d.after-d.before}</td></tr>)}</tbody></table></div>}</>}</section>;
+}

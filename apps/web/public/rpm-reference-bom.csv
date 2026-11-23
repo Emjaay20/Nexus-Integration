@@ -1,0 +1,5 @@
+MPN,Quantity,Manufacturer,Description
+ESP8266EX,1,Espressif,Wi-Fi microcontroller chip reference for NodeMCU-based prototype
+MAX30100,1,Analog Devices,Pulse oximetry and heart rate sensor IC
+DHT11,1,Aosong,Temperature and humidity sensor reference
+SH1106,1,Sinowealth,OLED display controller IC reference

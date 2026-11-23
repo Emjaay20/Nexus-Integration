@@ -1,113 +1,32 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { integrationService } from '@/services/integrationService';
-import { pusherServer } from '@/lib/pusher';
-import { auth } from '@/auth';
-import { db } from '@/lib/db';
-import { z } from 'zod';
-
-export const dynamic = 'force-dynamic';
-
-const EventSchema = z.object({
-    event: z.string().min(1, 'Event name is required'),
-    source: z.string().min(1, 'Source is required'),
-    payload: z.any().optional(),
-    status: z.enum(['success', 'failure']).optional(),
-});
-
-async function resolveUserId(request: NextRequest): Promise<string | null> {
-    const session = await auth();
-    if (session?.user?.id) return session.user.id;
-
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-        const apiKey = authHeader.slice(7);
-        try {
-            const crypto = await import('crypto');
-            const hashed = crypto.createHash('sha256').update(apiKey).digest('hex');
-            const result = await db.query(
-                'SELECT user_id FROM organization_settings WHERE api_key = $1 OR api_key = $2',
-                [apiKey, hashed]
-            );
-            if (result.rows.length > 0) return result.rows[0].user_id;
-        } catch (error) {
-            console.error('API key lookup error:', error);
-        }
-    }
-
-    return null;
-}
-
-export async function POST(request: NextRequest) {
-    const startTime = performance.now();
-
-    try {
-        const userId = await resolveUserId(request);
-        if (!userId) {
-            return NextResponse.json(
-                { success: false, message: 'Unauthorized. Provide a valid session cookie or Bearer API key.' },
-                { status: 401 }
-            );
-        }
-
-        const rawBody = await request.json();
-        const parseResult = EventSchema.safeParse(rawBody);
-        if (!parseResult.success) {
-            return NextResponse.json(
-                { success: false, message: 'Validation failed', errors: parseResult.error.flatten() },
-                { status: 400 }
-            );
-        }
-
-        const { event, source, payload, status: requestedStatus } = parseResult.data;
-
-        let integration = 'unknown';
-        if (source === 'shopify') integration = 'ecommerce-sync';
-        else if (source === 'salesforce') integration = 'crm-updates';
-        else if (source === 'arena') integration = 'plm-erp';
-        else if (source === 'bom-importer') integration = 'bom-importer';
-        else integration = source;
-
-        const logStatus = requestedStatus === 'failure' ? 'failure' : 'success';
-        const elapsedMs = Math.max(1, Math.round(performance.now() - startTime));
-
-        // 1. Log the event with real measured duration
-        const log = await integrationService.addActivityLog(userId, {
-            event: event,
-            integration: integration,
-            status: logStatus,
-            duration: `${elapsedMs}ms`,
-            payload: JSON.stringify(payload ?? {}, null, 2),
-            response: logStatus === 'success' ? {
-                status: 200,
-                statusText: 'OK',
-                headers: { 'Content-Type': 'application/json', 'X-Request-ID': crypto.randomUUID() },
-            } : undefined,
-            error: logStatus === 'failure' ? {
-                name: 'IntegrationError',
-                message: `Failed to sync with ${source}`,
-                code: 'ERR_TIMEOUT',
-            } : undefined,
-        });
-
-        // 2. Trigger real-time UI update on private channel
-        const userChannel = `private-user-${userId}`;
-        try {
-            await pusherServer.trigger(userChannel, 'new-activity', log);
-        } catch (pusherError) {
-            console.error('Pusher Error on private channel:', pusherError);
-        }
-
-        return NextResponse.json({
-            success: true,
-            logId: log.id,
-            duration: `${elapsedMs}ms`,
-            channel: userChannel,
-        });
-    } catch (error) {
-        console.error('Failed to trigger event:', error);
-        return NextResponse.json(
-            { success: false, message: 'Internal server error' },
-            { status: 500 }
-        );
-    }
+import {auth} from '@/auth';
+import {db} from '@/lib/db';
+import {allowsMutation} from '@/lib/request-origin';
+import {consumeLimit,limitedJson} from '@/lib/request-limits';
+import {parseTestEvent,validTestKey} from '@/lib/test-event-policy';
+import {createHash,randomUUID} from 'node:crypto';
+export const dynamic='force-dynamic';
+// Playground only. No provider requests, retries, or connector-health mutations.
+export async function POST(request:Request){
+  const headers={'Cache-Control':'no-store'};
+  const fail=(message:string,status:number)=>Response.json({success:false,message},{status,headers});
+  if(!allowsMutation(request))return fail('Cross-site requests are not allowed',403);
+  try{
+    const userId=(await auth())?.user?.id;
+    if(!userId)return fail('Sign in to record a test event',401);
+    if(userId==='00000000-0000-0000-0000-000000000001')return fail('The shared demo is read-only',403);
+    if(!await consumeLimit('playground-events',userId,30,60))return Response.json({success:false,message:'Test event limit reached'},{status:429,headers:{...headers,'Retry-After':'60'}});
+    if(!request.headers.get('content-type')?.toLowerCase().startsWith('application/json'))return fail('JSON required',415);
+    let value:unknown;
+    try{value=await limitedJson(request,16384);}catch(e){return fail('Invalid or oversized JSON',e instanceof Error&&e.message==='BODY_LIMIT'?413:400);}
+    const event=parseTestEvent(value);if(!event)return fail('Invalid test event',400);
+    const key=request.headers.get('idempotency-key')||randomUUID();
+    if(!validTestKey(key))return fail('Idempotency-Key must be a UUID',400);
+    const scopedKey=createHash('sha256').update(`nexus-test-event:${userId}:${key}`).digest('hex');
+    const metadata=JSON.stringify({mode:'test',source:event.source,requested_status:event.status});
+    const start=performance.now();
+    const result=await db.query(`INSERT INTO activity_logs(user_id,event,integration_id,status,duration,payload,idempotency_key) VALUES($1,$2,NULL,$3,NULL,$4,$5) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`,[userId,`test:${event.event}`,event.status,metadata,scopedKey]);
+    let id=result.rows[0]?.id;const replay=!id;
+    if(replay){const old=await db.query('SELECT id,event,status,payload FROM activity_logs WHERE user_id=$1 AND idempotency_key=$2',[userId,scopedKey]);const row=old.rows[0];if(!row||row.event!==`test:${event.event}`||row.status!==event.status||row.payload!==metadata)return fail('Idempotency key already used with a different fixture',409);id=row.id;}
+    return Response.json({success:true,mode:'test',logId:id,replay,idempotencyKey:key,duration:`${Math.round(performance.now()-start)}ms`,message:'Test record saved. No provider call or retry was executed.'},{status:replay?200:201,headers});
+  }catch{return fail('Test event could not be confirmed saved',503);}
 }

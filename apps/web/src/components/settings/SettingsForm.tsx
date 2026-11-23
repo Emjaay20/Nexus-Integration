@@ -40,7 +40,8 @@ export function SettingsForm({ initialSettings }: SettingsProps) {
         setIsRotating(true);
         const result = await rotateApiKey();
         if (result.success && result.apiKey) {
-            setSettings(prev => ({ ...prev, api_key: result.apiKey }));
+            const nextKey = result.apiKey;
+            setSettings(prev => ({ ...prev, api_key: nextKey }));
         }
         setIsRotating(false);
         router.refresh();

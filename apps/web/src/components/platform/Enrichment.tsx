@@ -181,12 +181,12 @@ export function Enrichment({ compact = false }: { compact?: boolean }) {
       .filter(Boolean);
     if (
       !mpns.length ||
-      mpns.length > 500 ||
+      mpns.length > 25 ||
       !Number.isInteger(quantity) ||
       quantity < 1
     ) {
       setError(
-        "Enter 1–500 part numbers and a positive whole-number quantity.",
+        "Enter 1–25 part numbers and a positive whole-number quantity.",
       );
       return;
     }
@@ -303,7 +303,7 @@ export function Enrichment({ compact = false }: { compact?: boolean }) {
           <span className="sub">
             {elapsed !== null
               ? `${parts.length} parts checked · ${(elapsed / 1000).toFixed(2)}s`
-              : "Up to 500 parts per run"}
+              : "Up to 25 parts per public run; use Workspace for larger BOMs"}
           </span>
         </div>
       </form>

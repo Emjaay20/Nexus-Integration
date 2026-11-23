@@ -4,7 +4,62 @@ use super::*;
 use actix_web::HttpRequest;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::Instrument;
+
+pub const WORKER_COUNT: usize = 2;
+
+/// Observes whether each worker has successfully executed its latest claim.
+/// A successful empty poll counts; this does not certify job completion.
+#[derive(Default)]
+pub struct WorkerHealth {
+    healthy: [AtomicBool; WORKER_COUNT],
+}
+impl WorkerHealth {
+    fn mark(&self, worker: usize, healthy: bool) {
+        self.healthy[worker].store(healthy, Ordering::Release);
+    }
+    pub fn ready_count(&self) -> usize {
+        self.healthy
+            .iter()
+            .filter(|value| value.load(Ordering::Acquire))
+            .count()
+    }
+}
+
+struct WorkerHealthGuard {
+    health: Arc<WorkerHealth>,
+    worker: usize,
+}
+impl Drop for WorkerHealthGuard {
+    fn drop(&mut self) {
+        self.health.mark(self.worker, false);
+    }
+}
+
+// Never log SQL text, DSNs, raw database messages or tenant payloads.
+fn claim_error_kind(err: &sqlx::Error) -> &'static str {
+    match err {
+        sqlx::Error::Database(_) => "database",
+        sqlx::Error::PoolTimedOut => "pool_timeout",
+        sqlx::Error::PoolClosed => "pool_closed",
+        sqlx::Error::ColumnNotFound(_) => "column_missing",
+        sqlx::Error::ColumnDecode { .. } => "column_decode",
+        sqlx::Error::Decode(_) => "decode",
+        sqlx::Error::Io(_) => "io",
+        _ => "other",
+    }
+}
+fn claim_sqlstate(err: &sqlx::Error) -> Option<String> {
+    match err {
+        sqlx::Error::Database(db) => db
+            .code()
+            .filter(|code| code.len() == 5 && code.bytes().all(|b| b.is_ascii_alphanumeric()))
+            .map(|code| code.into_owned()),
+        _ => None,
+    }
+}
+
 #[derive(Clone, Serialize, FromRow)]
 pub struct Job {
     pub id: Uuid,
@@ -211,12 +266,15 @@ pub async fn claim(pool: &PgPool) -> Result<Option<Job>, sqlx::Error> {
 }
 pub fn start_workers(state: WorkspaceState) -> Vec<tokio::task::JoinHandle<()>> {
     let mut tasks = Vec::new();
-    for worker in 0..2 {
+    for worker in 0..WORKER_COUNT {
         let state = state.clone();
+        state.worker_health.mark(worker, false);
         tasks.push(tokio::spawn(async move {
+            let _health = WorkerHealthGuard { health: state.worker_health.clone(), worker };
             loop {
                 match claim(&state.pool).await {
                     Ok(Some(job)) => {
+                        state.worker_health.mark(worker, true);
                         let span = tracing::info_span!("enrichment_job", job_id=%job.id, request_id=%job.request_id, worker);
                         use tracing_opentelemetry::OpenTelemetrySpanExt;
                         if let Some(parent)=&job.trace_parent {
@@ -225,9 +283,16 @@ pub fn start_workers(state: WorkspaceState) -> Vec<tokio::task::JoinHandle<()>> 
                         }
                         process(&state, &job).instrument(span).await;
                     }
-                    Ok(None) => tokio::time::sleep(Duration::from_millis(500)).await,
-                    Err(_) => {
-                        tracing::error!(worker, "job claim failed");
+                    Ok(None) => {
+                        state.worker_health.mark(worker, true);
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                    Err(err) => {
+                        state.worker_health.mark(worker, false);
+                        let kind = claim_error_kind(&err);
+                        let sqlstate = claim_sqlstate(&err);
+                        metrics::counter!("workspace_job_claim_failures_total", "kind" => kind).increment(1);
+                        tracing::error!(worker, error_kind=kind, sqlstate=sqlstate.as_deref().unwrap_or("none"), "job claim failed");
                         tokio::time::sleep(Duration::from_secs(2)).await;
                     }
                 }

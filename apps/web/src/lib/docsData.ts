@@ -1,33 +1,8 @@
 export const helpDocs = [
-    {
-        id: 'doc-1',
-        title: 'How to import a BOM (Bill of Materials)',
-        content: `To import a Bill of Materials (BOM), navigate to the BOM Importer page from the sidebar. 
-Click on the "Upload" zone or drag and drop your CSV or Excel file. 
-Once uploaded, our wizard will ask you to map the columns in your file (like Part Number, Quantity, Description) to our standard schema.
-Finally, click "Validate". The system will highlight any errors like missing quantities or invalid part numbers. If there are no errors, you can complete the import.`,
-    },
-    {
-        id: 'doc-2',
-        title: 'How to connect Shopify',
-        content: `To connect your Shopify store, go to Settings > Integrations and select "Connect Shopify".
-You will be redirected to the Shopify admin panel to authorize the Nexus Integration Hub.
-Once authorized, we will automatically sync your products and orders in real-time using webhooks.
-You can monitor the sync status in the Integration Hub dashboard.`,
-    },
-    {
-        id: 'doc-3',
-        title: 'What does a "Failure" status mean in the dashboard?',
-        content: `A "Failure" status in the activity log means that an incoming webhook could not be processed successfully.
-This usually happens if the destination API (like your ERP system) is down or timed out.
-Our system automatically retries failed webhooks 3 times with exponential backoff.
-If it succeeds on a retry, the status changes to "Recovered". If it fails all retries, it stays as "Failure" and may require manual intervention.`,
-    },
-    {
-        id: 'doc-4',
-        title: 'Where can I see Enablement Metrics?',
-        content: `You can view your enablement metrics by navigating to the "Enablement Metrics" tab in the dashboard.
-Here, you'll see charts for First Response Time, Time to Close, AI Chatbot Resolution Rate, and your overall Customer Satisfaction (CSAT) score.
-These metrics help you understand how effectively your support channels are operating.`,
-    }
+  {id:'bom-import', title:'Import a bill of materials (BOM)', href:'/bom-importer', content:'Sign in to a private workspace. Upload CSV or Excel, map part number and quantity columns, resolve validation errors, and save. Open the saved BOM in Workspace to run sourcing.'},
+  {id:'supplier-data', title:'Supplier prices, stock and sourcing', href:'/platform-core', content:'Studio compares available supplier offers. Live, reference and unavailable results have different provenance. Reference prices are illustrative and are not current quotes. Missing prices must not be treated as zero.'},
+  {id:'alternatives', title:'Alternative parts and compatibility', href:'/platform-core?tab=vector', content:'Similarity ranks candidates for further review, not approved replacements. Check manufacturer datasheets, package, pinout, voltage, temperature and lifecycle before qualification.'},
+  {id:'workspace', title:'Workspace roles and background job recovery', href:'/workspace', content:'Owners manage membership, engineers can edit and run sourcing, and viewers can read. Sourcing jobs persist progress, use bounded retries and can recover after interruption. The public demo is read-only.'},
+  {id:'integrations', title:'External connectors and webhook test limitations', href:'/docs', content:'Legacy connector sync is not currently verified. A playground event is a test record, not evidence of an external ERP, CRM or supplier transaction. Manual synchronisation is unavailable until a real adapter is verified.'},
+  {id:'status', title:'Availability and service status', href:'/status', content:'Status shows service reachability and credential configuration. Configured credentials do not prove live access. A failed dependency is an unavailable result, not a successful lookup.'},
 ];
