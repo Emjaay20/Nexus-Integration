@@ -43,7 +43,7 @@ export default function Docs() {
             the Rust core, which delegates distributor lookups to the Go
             ingestion service.
           </p>
-          <code className="blk">{`Browser → Next.js :3000\n            ├─ PostgreSQL: accounts, imports, activity\n            └─ Rust :8088: parsing, scoring, policy evaluation\n                 └─ Go :8090: concurrent supplier lookups\n                      ├─ DigiKey v4 (credentials required)\n                      ├─ Mouser v1 (API key required)\n                      └─ Reference catalog (illustrative)`}</code>
+          <code className="blk">{`Browser → Next.js :3000\n            ├─ PostgreSQL: accounts, imports, activity\n            └─ Rust :8088: parsing, scoring, policy evaluation\n                 └─ Go :8090: concurrent supplier lookups\n                      ├─ DigiKey v4 (credentials required)\n                      ├─ Mouser v1 (API key required)\n                      ├─ Nexar GraphQL (credentials required)\n                      └─ Reference catalog (illustrative)`}</code>
           <h2 id="data">Know the source of every offer</h2>
           <p>
             Results tagged “Live API” come from a configured supplier
@@ -53,7 +53,7 @@ export default function Docs() {
           </p>
           <p>
             DigiKey requires DIGIKEY_CLIENT_ID and DIGIKEY_CLIENT_SECRET. Mouser
-            requires MOUSER_API_KEY. Configure these as server environment
+            requires MOUSER_API_KEY. Nexar requires NEXAR_CLIENT_ID and NEXAR_CLIENT_SECRET. Configure these as server environment
             secrets. Failed requests and missing credentials are reported in
             lookup details. Farnell entries are reference data; there is no live
             Farnell connector.

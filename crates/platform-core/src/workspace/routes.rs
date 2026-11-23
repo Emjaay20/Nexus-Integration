@@ -26,12 +26,31 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 async fn ready(state: Option<web::Data<WorkspaceState>>) -> impl Responder {
     if let Some(s) = state {
-        if sqlx::query("SELECT 1").execute(&s.pool).await.is_ok() {
-            return HttpResponse::Ok().json(json!({"status":"ready","workspace_storage":"online"}));
+        let storage_online = matches!(
+            tokio::time::timeout(
+                Duration::from_secs(2),
+                sqlx::query("SELECT 1").execute(&s.pool),
+            )
+            .await,
+            Ok(Ok(_))
+        );
+        let ready_workers = s.worker_health.ready_count();
+        let workers_ready = ready_workers == jobs::WORKER_COUNT;
+        let body = json!({
+            "status": if storage_online && workers_ready { "ready" } else { "not_ready" },
+            "workspace_storage": if storage_online { "online" } else { "offline" },
+            "job_workers_ready": ready_workers,
+            "job_workers_expected": jobs::WORKER_COUNT,
+        });
+        if storage_online && workers_ready {
+            return HttpResponse::Ok().json(body);
         }
+        return HttpResponse::ServiceUnavailable().json(body);
     }
-    HttpResponse::ServiceUnavailable()
-        .json(json!({"status":"not_ready","workspace_storage":"offline"}))
+    HttpResponse::ServiceUnavailable().json(json!({
+        "status":"not_ready", "workspace_storage":"offline",
+        "job_workers_ready":0, "job_workers_expected":jobs::WORKER_COUNT,
+    }))
 }
 async fn context(s: web::Data<WorkspaceState>, a: Actor) -> Result<HttpResponse, AppError> {
     let workspaces:Vec<(Uuid,String,String)>=sqlx::query_as("SELECT w.id,w.name,m.role FROM platform_memberships m JOIN platform_workspaces w ON w.id=m.workspace_id WHERE m.user_id=$1 ORDER BY w.name").bind(a.user_id).fetch_all(&s.pool).await?;

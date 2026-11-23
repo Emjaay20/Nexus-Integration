@@ -18,6 +18,7 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub struct WorkspaceState {
     pub pool: PgPool,
+    pub worker_health: Arc<jobs::WorkerHealth>,
     pub verifier: auth::AssertionVerifier,
     pub policies: Arc<PolicyEngine>,
     pub ingest_url: String,
@@ -39,6 +40,7 @@ impl WorkspaceState {
         Ok(Self {
             model_enabled: std::env::var("NEXUS_AI_ENABLED").as_deref() == Ok("true"),
             pool,
+            worker_health: Arc::new(jobs::WorkerHealth::default()),
             verifier,
             policies: Arc::new(PolicyEngine::new(workspace_policies())),
             ingest_url,
