@@ -55,7 +55,7 @@ export default function ProcurementPlanner(){
    <div className="eyebrow">NEXUS / PROCUREMENT INTELLIGENCE / PHASE 3</div>
    <h1>Whole-BOM sourcing planner</h1>
    <p>Compare local, international and mixed purchasing strategies, including supplier-level fixed costs, quantity breaks, minimum orders and stock limits. Sample scenarios are synthetic and never represent live supplier offers.</p>
-   <Link className="btn btn-secondary" href="/regional-sourcing">Back to Regional Sourcing</Link>
+   <Link className="btn btn-secondary" href="/regional-sourcing">Back to Regional Sourcing</Link> <Link className="btn btn-primary" href="/regional-sourcing/intelligence">Evidence &amp; Copilot</Link>
   </header>
   <section className="result-section">
    <h2>1. Choose procurement evidence</h2>
