@@ -2,7 +2,7 @@ import {forwardWorkspace} from '@/lib/core-workspace';
 import {db} from '@/lib/db';
 import {consumeLimit} from '@/lib/request-limits';
 import {allowsMutation} from '@/lib/request-origin';
-import {record,uuid} from '@/lib/regional/model';
+import {record,uuid,InputError} from '@/lib/regional/model';
 import {extractPDF,PdfError} from '@/lib/regional/pdf-extract';
 import {KnowledgeError,storeDocument} from '@/lib/regional/knowledge';
 export const dynamic='force-dynamic';
@@ -13,6 +13,7 @@ function reply(value:unknown,status=200){return Response.json(value,{status,head
 function fail(e:unknown){
  if(e instanceof UploadError)return reply({error:e.message},e.status);
  if(e instanceof KnowledgeError)return reply({error:e.message},e.status);
+ if(e instanceof InputError)return reply({error:e.message},400);
  if(e instanceof PdfError)return reply({error:'PDF text extraction unavailable or unsupported',reason:e.code},422);
  return reply({error:'Datasheet processing temporarily unavailable. No document evidence was saved.'},503);
 }
