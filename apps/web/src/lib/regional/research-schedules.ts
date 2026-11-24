@@ -139,5 +139,51 @@ export async function tickResearch(max=MAX_DISPATCH){
   await db.query("UPDATE platform_regional_sourcing SET state=$1,crawler_job_id=$2,error_code=$3,updated_at=now() WHERE id=$4 AND workspace_id=$5 AND state='submitting'",[jobId?'submitted':'submission_unknown',jobId,jobId?null:'submission_not_confirmed',rowId,workspaceId]);
   outcome.push({scheduleId,result:jobId?'submitted':'submission_unknown'});
  }
- return {processed:outcome.length,results:outcome};
+ const reconciled=await reconcileScheduled(3);
+ return {processed:outcome.length,results:outcome,reconciled};
+}
+
+/** Poll only already-reserved scheduler jobs; GET/status checks can be retried, never new POSTs. */
+async function reconcileScheduled(max:number){
+ const results:{researchId:string;state:string}[]=[];
+ for(let i=0;i<max;i++){
+  if(!await consumeLimit('regional_poll_global','global',100,60))break;
+  const job=await db.transaction(async tx=>{
+   const pending=await tx.query("SELECT r.*,s.id AS schedule_id,s.authorization_ref FROM platform_regional_sourcing r JOIN platform_research_schedules s ON s.workspace_id=r.workspace_id AND s.last_result_id=r.id WHERE r.kind='research' AND r.state='submitted' AND r.crawler_job_id IS NOT NULL AND (r.poll_until IS NULL OR r.poll_until<now()) AND r.updated_at<now()-interval '30 seconds' ORDER BY r.created_at ASC FOR UPDATE OF r SKIP LOCKED LIMIT 1");
+   if(!pending.rows.length)return null;
+   const row=pending.rows[0];
+   const membership=await tx.query('SELECT m.role FROM platform_memberships m JOIN platform_user_context c ON c.workspace_id=m.workspace_id AND c.user_id=m.user_id WHERE m.workspace_id=$1 AND m.user_id=$2',[row.workspace_id,row.actor_id]);
+   const bom=await tx.query('SELECT revision,items FROM platform_boms WHERE workspace_id=$1 AND id=$2',[row.workspace_id,row.bom_id]);
+   const invalid=!['owner','design_engineer'].includes(membership.rows[0]?.role)||!bom.rows.length||Number(bom.rows[0].revision)!==Number(row.bom_revision);
+   if(invalid){
+    await tx.query("UPDATE platform_regional_sourcing SET state='failed',error_code='authorization_or_revision_changed',updated_at=now() WHERE workspace_id=$1 AND id=$2",[row.workspace_id,row.id]);
+    await tx.query("UPDATE platform_research_schedules SET state='review_required',last_error_code='authorization_or_revision_changed',updated_at=now() WHERE workspace_id=$1 AND id=$2",[row.workspace_id,row.schedule_id]);
+    return null;
+   }
+   let approved=false;
+   try{const p=policyFor(String(row.supplier_id),String(row.source_url));approved=p.policy.authorizationRef===row.policy_ref&&p.policy.authorizationRef===row.authorization_ref;}catch{}
+   if(!approved){
+    await tx.query("UPDATE platform_regional_sourcing SET state='failed',error_code='source_authorization_changed',updated_at=now() WHERE workspace_id=$1 AND id=$2",[row.workspace_id,row.id]);
+    await tx.query("UPDATE platform_research_schedules SET state='review_required',last_error_code='source_authorization_changed',updated_at=now() WHERE workspace_id=$1 AND id=$2",[row.workspace_id,row.schedule_id]);return null;
+   }
+   const token=randomUUID();
+   await tx.query("UPDATE platform_regional_sourcing SET poll_token=$1,poll_until=now()+interval '45 seconds' WHERE id=$2 AND workspace_id=$3",[token,row.id,row.workspace_id]);
+   return {...row,poll_token:token};
+  });
+  if(!job)break;
+  let outcome:Awaited<ReturnType<typeof pollResearch>>|null=null;
+  try{
+   const source=policyFor(job.supplier_id,job.source_url);
+   outcome=await pollResearch(source.config,job.crawler_job_id,source.supplier,{...source.policy,allowModel:false},job.source_url,job.part as Part);
+  }catch{/* network/status ambiguity: do not issue a new scrape */}
+  if(outcome){
+   const state=outcome.state;
+   await db.query("UPDATE platform_regional_sourcing SET state=$1,result=$2,error_code=$3,updated_at=now(),poll_token=NULL,poll_until=CASE WHEN $1='submitted' THEN now()+interval '5 minutes' ELSE NULL END WHERE id=$4 AND workspace_id=$5 AND state='submitted' AND poll_token=$6",[state,outcome.observation?JSON.stringify(outcome.observation):null,outcome.error||null,job.id,job.workspace_id,job.poll_token]);
+   results.push({researchId:String(job.id),state});
+  }else{
+   await db.query("UPDATE platform_regional_sourcing SET poll_token=NULL,poll_until=now()+interval '5 minutes' WHERE workspace_id=$1 AND id=$2 AND state='submitted' AND poll_token=$3",[job.workspace_id,job.id,job.poll_token]).catch(()=>{});
+   results.push({researchId:String(job.id),state:'pending_review'});
+  }
+ }
+ return results;
 }
