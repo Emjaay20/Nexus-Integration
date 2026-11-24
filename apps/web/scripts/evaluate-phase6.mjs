@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import ts from 'typescript';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
+import {resolve} from 'node:path';
 const require=createRequire(import.meta.url);
 const cache=new Map();
 function load(file){
@@ -54,6 +55,6 @@ export function evaluate(){
   constraints:{synthetic_only:true,live_supplier_integrations_evaluated:false,real_pdf_persistence_evaluated:false,scheduled_cloud_delivery_evaluated:false}
  };
 }
-if(process.argv[1]&&fileURLToPath(import.meta.url)===fileURLToPath(new URL('file://'+process.argv[1]).href.startsWith('file://')?new URL('file://'+process.argv[1]):import.meta.url)){
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  console.log(JSON.stringify(evaluate(),null,2));
 }
