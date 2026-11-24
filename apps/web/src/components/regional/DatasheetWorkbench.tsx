@@ -7,7 +7,7 @@ type Selection={workspaceId:string;bomId:string;revision:number};
 const field={width:'100%',padding:'8px 10px',background:'transparent',color:'inherit',border:'1px solid var(--border, #aaa)',borderRadius:6};
 const fixtureA='FICTIONAL DATASHEET — synthetic demo only\nOperating voltage: 3.0 to 3.6 V\nOperating temperature: -40 to +85 C\fPAGE TWO — SYNTHETIC\nPackage: QFN-32\nPin count: 32';
 const fixtureB='FICTIONAL ALTERNATIVE — synthetic demo only\nOperating voltage: 1.8 to 3.3 V\nOperating temperature: -20 to +70 C\nPackage: QFN-32\nPin count: 28';
-export default function DatasheetWorkbench({selection,lines}:{selection:Selection|null;lines:EvidenceLine[]}){
+export default function DatasheetWorkbench({selection,lines,canWrite=true}:{selection:Selection|null;lines:EvidenceLine[];canWrite?:boolean}){
  const [documents,setDocuments]=useState<DatasheetDocument[]>([]),[file,setFile]=useState<File|null>(null),[line,setLine]=useState(0);
  const [query,setQuery]=useState('operating voltage'),[answer,setAnswer]=useState<DocumentAnswer|null>(null);
  const [primary,setPrimary]=useState(''),[candidate,setCandidate]=useState(''),[comparison,setComparison]=useState<CompatibilityFinding[]|null>(null);
@@ -50,12 +50,12 @@ export default function DatasheetWorkbench({selection,lines}:{selection:Selectio
   <h2>PDF datasheet intelligence &amp; citations</h2>
   <p>Upload a PDF text layer (up to 1.5 MB). The server processes at most 12 pages with local Poppler, returns bounded text and SHA-256 provenance, and deletes the temporary file. Documents remain only in this browser session. Scanned PDFs require separate OCR and are not supported.</p>
   <div style={{display:'flex',gap:10,flexWrap:'wrap'}}><button className="btn btn-secondary btn-sm" onClick={demo}>Load two synthetic datasheets</button>{documents.length>0&&<button className="btn btn-secondary btn-sm" onClick={exportJSON}>Export cited analysis JSON</button>}</div>
-  {selection&&<div style={{marginTop:14,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,200px),1fr))',gap:12}}>
+  {selection&&canWrite&&<div style={{marginTop:14,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,200px),1fr))',gap:12}}>
    <label className="field">BOM component<select style={field} value={line} onChange={e=>setLine(Number(e.target.value))}>{lines.map((l,i)=><option key={l.id} value={i}>{l.mpn}</option>)}</select></label>
    <label className="field">PDF text document<input style={field} type="file" accept="application/pdf,.pdf" onChange={e=>setFile(e.target.files?.[0]||null)}/></label>
    <div style={{display:'flex',alignItems:'end'}}><button className="btn btn-primary btn-sm" disabled={working||!file} onClick={()=>void upload()}>{working?'Extracting…':persist?'Extract & save text':'Extract PDF text'}</button></div>
   </div>}
-  {selection&&<p><label><input type="checkbox" checked={persist} onChange={e=>setPersist(e.target.checked)}/> Save extracted PDF text to my private workspace knowledge base (up to five documents per BOM; original PDF bytes deleted)</label>{existingId&&<small> · Selected existing document for new version. <button type="button" className="btn btn-secondary btn-sm" onClick={()=>setExistingId('')}>Create separate document</button></small>}</p>}
+  {selection&&canWrite&&<p><label><input type="checkbox" checked={persist} onChange={e=>setPersist(e.target.checked)}/> Save extracted PDF text to my private workspace knowledge base (up to five documents per BOM; original PDF bytes deleted)</label>{existingId&&<small> · Selected existing document for new version. <button type="button" className="btn btn-secondary btn-sm" onClick={()=>setExistingId('')}>Create separate document</button></small>}</p>}
   {!selection&&<p className="note">Sign in and load a saved BOM to upload your own PDF. The fully synthetic demo works without sign-in.</p>}
   {error&&<p role="alert" className="note error">{error}</p>}{notice&&<p role="status" className="note">{notice}</p>}
   {documents.length>0&&<>
@@ -81,6 +81,6 @@ export default function DatasheetWorkbench({selection,lines}:{selection:Selectio
    <button className="btn btn-secondary btn-sm" onClick={compare}>Compare extracted properties</button>
    {comparison&&<div className="note">{comparison.map(c=><p key={c.property}><strong>{c.property.replaceAll('_',' ')}:</strong> {c.primary||'unknown'} vs {c.candidate||'unknown'} — {c.status.replaceAll('_',' ')}<br/><small>{c.note} {c.citations.join(' · ')}</small></p>)}</div>}
   </>}
-  {selection&&<KnowledgeLibrary key={selection.bomId+':'+selection.revision} selection={selection} refresh={refresh} onChooseVersion={id=>{setExistingId(id);setPersist(!!id);}}/>}
+  {selection&&<KnowledgeLibrary key={selection.bomId+':'+selection.revision} selection={selection} readOnly={!canWrite} refresh={refresh} onChooseVersion={id=>{setExistingId(id);setPersist(!!id);}}/>}
  </section>;
 }
