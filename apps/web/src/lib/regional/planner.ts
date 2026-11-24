@@ -23,7 +23,7 @@ export class PlanError extends Error {}
 const MONEY=/^(?:0|[1-9]\d{0,14})$/;
 const MPN=/^[\w.+#\-\/]{1,128}$/;
 const ID=/^[a-zA-Z0-9_.:-]{1,100}$/;
-const MAX=10n**20n;
+const MAX=BigInt(10)**BigInt(20);
 function valid(c:unknown,m:string):asserts c {if(!c)throw new PlanError(m);}
 function int(v:unknown,max:number){return typeof v==='number'&&Number.isSafeInteger(v)&&v>=1&&v<=max;}
 function nonneg(v:unknown,max:number){return typeof v==='number'&&Number.isSafeInteger(v)&&v>=0&&v<=max;}
@@ -64,11 +64,11 @@ export function validateScenario(x:PlanScenario):PlanScenario{
    valid(Array.isArray(o.tiers)&&o.tiers.length>=1&&o.tiers.length<=12,'Invalid price breaks');
    let last=0;for(const t of o.tiers){
      valid(int(t.minQty,1000000)&&t.minQty>last,'Price breaks must ascend');
-     last=t.minQty;minor(t.unitPrice4,10n**16n);valid(BigInt(t.unitPrice4)>0n,'Price must be positive');
+     last=t.minQty;minor(t.unitPrice4,BigInt(10)**BigInt(16));valid(BigInt(t.unitPrice4)>BigInt(0),'Price must be positive');
    }
-   minor(o.fx6,10n**15n);valid(BigInt(o.fx6)>0n,'FX must be positive');
-   if(o.shipping2!==null)minor(o.shipping2,10n**16n);
-   if(o.fees2!==null)minor(o.fees2,10n**16n);
+   minor(o.fx6,BigInt(10)**BigInt(15));valid(BigInt(o.fx6)>BigInt(0),'FX must be positive');
+   if(o.shipping2!==null)minor(o.shipping2,BigInt(10)**BigInt(16));
+   if(o.fees2!==null)minor(o.fees2,BigInt(10)**BigInt(16));
    offers.add(o.id);
  }
  return x;
@@ -83,8 +83,8 @@ function eligible(o:PlanOffer,q:number,now:number):boolean{
 function price(o:PlanOffer,q:number,now:number):bigint|null{
  if(!eligible(o,q,now))return null;
  const tier=[...o.tiers].reverse().find(t=>t.minQty<=q);if(!tier)return null;
- const source4=BigInt(tier.unitPrice4)*BigInt(q)+(BigInt(o.shipping2!)+BigInt(o.fees2!))*100n;
- return (source4*BigInt(o.fx6)+50000000n)/100000000n;
+ const source4=BigInt(tier.unitPrice4)*BigInt(q)+(BigInt(o.shipping2!)+BigInt(o.fees2!))*BigInt(100);
+ return (source4*BigInt(o.fx6)+BigInt(50000000))/BigInt(100000000);
 }
 type Choice={cost:bigint;alloc:{offer:PlanOffer;q:number;cost:bigint}[];opened:Set<string>};
 type LineChoice={cost:bigint;alloc:{offer:PlanOffer;q:number;cost:bigint}[]};
@@ -92,7 +92,7 @@ function bestForLine(line:PlanLine,suppliers:PlanSupplier[],offers:PlanOffer[],n
  // Exact bounded multi-supplier integer DP: one offer per supplier per BOM line.
  const d=line.quantity;
  if(d>240)return null;
- let costs:(bigint|null)[]=Array(d+1).fill(null);costs[0]=0n;
+ let costs:(bigint|null)[]=Array(d+1).fill(null);costs[0]=BigInt(0);
  const back:{prev:number;q:number;offer?:PlanOffer;price?:bigint}[][]=[];
  for(const supplier of suppliers){
    const next:(bigint|null)[]=Array(d+1).fill(null);
@@ -105,7 +105,7 @@ function bestForLine(line:PlanLine,suppliers:PlanSupplier[],offers:PlanOffer[],n
      if(costs[used]===null)continue;
      for(let qty=0;qty<=d-used;qty++){
        const entry=qty===0?null:byQuantity[qty];if(qty>0&&!entry)continue;
-       const newCost=costs[used]!+(entry?.cost??0n);const total=used+qty;
+       const newCost=costs[used]!+(entry?.cost??BigInt(0));const total=used+qty;
        if(next[total]===null||newCost<next[total]!){
          next[total]=newCost;
          choices[total]={prev:used,q:qty,...(entry?{offer:entry.offer,price:entry.cost}:{})};
@@ -127,8 +127,8 @@ function greedyLine(line:PlanLine,suppliers:PlanSupplier[],offers:PlanOffer[],op
  function consider(alloc:LineChoice['alloc']){
    if(alloc.reduce((s,a)=>s+a.q,0)!==d)return;
    const seen=new Set(alloc.map(a=>a.offer.supplierId));
-   const cost=alloc.reduce((s,a)=>s+a.cost,0n);
-   const total=cost+[...seen].reduce((s,id)=>s+(open.has(id)?0n:setup.get(id)!),0n);
+   const cost=alloc.reduce((s,a)=>s+a.cost,BigInt(0));
+   const total=cost+[...seen].reduce((s,id)=>s+(open.has(id)?BigInt(0):setup.get(id)!),BigInt(0));
    if(bestTotal===null||total<bestTotal){best={cost,alloc};bestTotal=total;}
  }
  for(const a of candidates){const cost=price(a,d,now);if(cost!==null)consider([{offer:a,q:d,cost}]);}
@@ -152,14 +152,14 @@ function greedyLine(line:PlanLine,suppliers:PlanSupplier[],offers:PlanOffer[],op
      const ceiling=Math.min(needed,o.maxQuantity,o.stock??0);
      for(const q of new Set([ceiling,Math.max(o.moq??1,o.minQuantity),Math.floor(ceiling/2)])){
        const cost=price(o,q,now);if(cost===null)continue;
-       const score=(cost+(open.has(o.supplierId)?0n:setup.get(o.supplierId)!))*10000n/BigInt(q);
+       const score=(cost+(open.has(o.supplierId)?BigInt(0):setup.get(o.supplierId)!))*BigInt(10000)/BigInt(q);
        if(!candidate||score<candidate.score)candidate={offer:o,q,cost,score};
      }
    }
    if(!candidate)break;
    alloc.push(candidate);needed-=candidate.q;remain.delete(candidate.offer.supplierId);
  }
- return needed===0?{cost:alloc.reduce((s,a)=>s+a.cost,0n),alloc}:null;
+ return needed===0?{cost:alloc.reduce((s,a)=>s+a.cost,BigInt(0)),alloc}:null;
 }
 function variant(s:PlanScenario,mode:PlanVariant['mode'],now:number):PlanVariant{
  const suppliers=s.suppliers.filter(x=>mode==='all'||x.region===mode);
@@ -170,7 +170,7 @@ function variant(s:PlanScenario,mode:PlanVariant['mode'],now:number):PlanVariant
    const count=1<<suppliers.length;
    for(let mask=1;mask<count;mask++){
      const subset=suppliers.filter((_,i)=>(mask&(1<<i))!==0);
-     let cost=subset.reduce((sum,supplier)=>sum+BigInt(supplier.setupMinor),0n);
+     let cost=subset.reduce((sum,supplier)=>sum+BigInt(supplier.setupMinor),BigInt(0));
      const alloc:Choice['alloc']=[];
      let all=true;
      for(const line of s.lines){
@@ -189,12 +189,12 @@ function variant(s:PlanScenario,mode:PlanVariant['mode'],now:number):PlanVariant
      if(linePlan){alloc.push(...linePlan.alloc);linePlan.alloc.forEach(a=>opened.add(a.offer.supplierId));}
      else missing.push({lineId:line.id,mpn:line.mpn,quantity:line.quantity,reason:'No feasible quantity/stock/MOQ/price-break combination found'});
    }
-   const fixed=[...opened].reduce((sum,id)=>sum+BigInt(suppliers.find(x=>x.id===id)!.setupMinor),0n);
-   winner={cost:alloc.reduce((sum,a)=>sum+a.cost,0n)+fixed,alloc,opened};
+   const fixed=[...opened].reduce((sum,id)=>sum+BigInt(suppliers.find(x=>x.id===id)!.setupMinor),BigInt(0));
+   winner={cost:alloc.reduce((sum,a)=>sum+a.cost,BigInt(0))+fixed,alloc,opened};
    if(exact&&missing.length===0)method='heuristic'; // Exact subset search found no global complete plan; never claim optimal.
  }
  const used=[...winner.opened];
- const fixed=used.reduce((sum,id)=>sum+BigInt(suppliers.find(x=>x.id===id)!.setupMinor),0n);
+ const fixed=used.reduce((sum,id)=>sum+BigInt(suppliers.find(x=>x.id===id)!.setupMinor),BigInt(0));
  const allocations:Allocation[]=winner.alloc.map(a=>({lineId:a.offer.lineId,mpn:a.offer.mpn,supplierId:a.offer.supplierId,supplier:suppliers.find(x=>x.id===a.offer.supplierId)!.name,offerId:a.offer.id,quantity:a.q,costMinor:a.cost.toString(),evidence:a.offer.evidence}));
  const complete=missing.length===0&&s.lines.every(l=>allocations.filter(x=>x.lineId===l.id).reduce((sum,x)=>sum+x.quantity,0)===l.quantity);
  return {mode,complete,method,totalMinor:complete?(allocations.reduce((sum,a)=>sum+BigInt(a.costMinor),fixed)).toString():null,
@@ -221,7 +221,7 @@ export function demoScenario(large=false):PlanScenario{
   const unit=BigInt(Math.round((1800+i%7*300)*(j===0?1:j===1?0.84:0.63)));
   offers.push({id:'offer-'+i+'-'+j,lineId:l.id,supplierId:s.id,mpn:l.mpn,manufacturer:l.manufacturer,
     stock:j===0&&i%5===1?3:100,moq:j===2?2:1,minQuantity:1,maxQuantity:100,
-    tiers:[{minQty:1,unitPrice4:(unit*10000n).toString()},{minQty:10,unitPrice4:(unit*9200n).toString()}],
+    tiers:[{minQty:1,unitPrice4:(unit*BigInt(10000)).toString()},{minQty:10,unitPrice4:(unit*BigInt(9200)).toString()}],
     currency:'NGN',fx6:'1000000',shipping2:'0',fees2:'0',validUntil:'2099-01-01T00:00:00.000Z',
     identityConfirmed:true,destinationConfirmed:true,evidence:'illustrative'});
  }
