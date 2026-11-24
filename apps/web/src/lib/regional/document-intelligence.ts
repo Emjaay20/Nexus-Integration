@@ -63,7 +63,9 @@ export function searchDocuments(documents:DatasheetDocument[],query:string,limit
    }
   }
  }
- return hits.sort((a,b)=>b.score-a.score||a.documentId.localeCompare(b.documentId)||a.page-b.page||a.citation.localeCompare(b.citation)).slice(0,limit);
+ const strongest=hits.reduce((n,h)=>Math.max(n,h.matched.length),0);
+ const relevant=words.length>1&&strongest>=2?hits.filter(h=>h.matched.length>=2):hits;
+ return relevant.sort((a,b)=>b.score-a.score||a.documentId.localeCompare(b.documentId)||a.page-b.page||a.citation.localeCompare(b.citation)).slice(0,limit);
 }
 export function answerDocuments(documents:DatasheetDocument[],question:string):DocumentAnswer{
  const hits=searchDocuments(documents,question);
