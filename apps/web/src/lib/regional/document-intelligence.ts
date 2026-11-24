@@ -8,7 +8,7 @@ export type DatasheetDocument={id:string;name:string;sha256:string;pages:Documen
 export type DocumentHit={citation:string;documentId:string;document:string;page:number;excerpt:string;score:number;matched:string[]};
 export type CompatibilityFinding={property:DatasheetCandidate['property'];primary:string|null;candidate:string|null;status:'unknown'|'different'|'needs_engineering_review';note:string;citations:string[]};
 export type DocumentAnswer={question:string;hits:DocumentHit[];summary:string;status:'evidence_found'|'insufficient_evidence';caution:string};
-const STOP=new Set(['the','and','for','with','that','from','this','what','which','about','does','into','have','will','are','can','part','datasheet','specification','compare','between','please','need','voltage','device']);
+const STOP=new Set(['the','and','for','with','that','from','this','what','which','about','does','into','have','will','are','can','part','datasheet','specification','compare','between','please','need','device']);
 function safeTitle(raw:string):string {return typeof raw==='string'?raw.replace(/[\u0000-\u001f]/g,' ').trim().slice(0,120):'';}
 export function parsePdfTextPages(text:string,maxPages=12):{pages:DocumentPage[];truncated:boolean}{
  if(typeof text!=='string'||text.length>250000||!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>12)throw Error('Invalid or oversized PDF extraction');
@@ -64,6 +64,7 @@ export function searchDocuments(documents:DatasheetDocument[],query:string,limit
   }
  }
  const strongest=hits.reduce((n,h)=>Math.max(n,h.matched.length),0);
+ if(words.length>=3&&strongest<2)return []; // Reject weak matches for specific multi-term searches.
  const relevant=words.length>1&&strongest>=2?hits.filter(h=>h.matched.length>=2):hits;
  return relevant.sort((a,b)=>b.score-a.score||a.documentId.localeCompare(b.documentId)||a.page-b.page||a.citation.localeCompare(b.citation)).slice(0,limit);
 }
