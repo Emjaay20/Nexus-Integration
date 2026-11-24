@@ -138,7 +138,7 @@ function greedyLine(line:PlanLine,suppliers:PlanSupplier[],offers:PlanOffer[],op
    if(d<=300){for(let q=1;q<d;q++)qs.add(q);}
    else {
      const anchors=[1,d-1,Math.floor(d/2),Math.floor(d/4),Math.floor(3*d/4),a.moq,a.stock,a.minQuantity,a.maxQuantity,d-(b.moq??0),d-(b.stock??0),d-b.minQuantity,d-b.maxQuantity,...a.tiers.map(t=>t.minQty),...b.tiers.map(t=>d-t.minQty)];
-     for(const q of anchors)if(q!==null&&Number.isSafeInteger(q))for(const z of [q-1,q,q+1])if(z>0&&z<d)qs.add(z);
+     for(const q of anchors)if(typeof q==='number'&&Number.isSafeInteger(q))for(const z of [q-1,q,q+1])if(z>0&&z<d)qs.add(z);
    }
    for(const q of qs){const ca=price(a,q,now),cb=price(b,d-q,now);if(ca!==null&&cb!==null)consider([{offer:a,q,cost:ca},{offer:b,q:d-q,cost:cb}]);}
  }
@@ -218,7 +218,7 @@ export function demoScenario(large=false):PlanScenario{
  const lines:PlanLine[]=Array.from({length:large?50:5},(_,i)=>{const b=base[i%5];return {id:'line-'+i,mpn:large?b.mpn+'-'+i:b.mpn,manufacturer:b.manufacturer,quantity:b.q};});
  const offers:PlanOffer[]=[];
  for(const [i,l] of lines.entries())for(const [j,s] of suppliers.entries()){
-  const unit=BigInt((1800+i%7*300)*(j===0?1:j===1?0.84:0.63));
+  const unit=BigInt(Math.round((1800+i%7*300)*(j===0?1:j===1?0.84:0.63)));
   offers.push({id:'offer-'+i+'-'+j,lineId:l.id,supplierId:s.id,mpn:l.mpn,manufacturer:l.manufacturer,
     stock:j===0&&i%5===1?3:100,moq:j===2?2:1,minQuantity:1,maxQuantity:100,
     tiers:[{minQty:1,unitPrice4:(unit*10000n).toString()},{minQty:10,unitPrice4:(unit*9200n).toString()}],
