@@ -17,7 +17,7 @@ function harness(options={}){
    if(sql.includes('platform_boms'))return {rows:state.missingBom?[]:[{revision:state.stale?2:1,items:[{partNumber:'ESP32-WROOM-32E',manufacturer:'Espressif',quantity:5}]}]};
    throw Error('Unexpected SQL '+sql);
   }})}};
-  if(p==='@/lib/regional/model')return {uuid:v=>{if(typeof v!=='string'||!/^[a-f0-9-]{36}$/i.test(v))throw Error('UUID invalid');return v},record:v=>{if(!v||typeof v!=='object'||Array.isArray(v))throw Error('Expected record');return v}};
+  if(p==='@/lib/regional/model')return {InputError:class InputError extends Error{},uuid:v=>{if(typeof v!=='string'||!/^[a-f0-9-]{36}$/i.test(v))throw Error('UUID invalid');return v},record:v=>{if(!v||typeof v!=='object'||Array.isArray(v))throw Error('Expected record');return v}};
   if(p==='@/lib/regional/pdf-extract')return {PdfError:class PdfError extends Error{},extractPDF:async(bytes,name)=>{state.extractions++;return {name,sha256:'a'.repeat(64),pages:[{page:1,text:'Operating voltage: 3 to 5 V',truncated:false}],properties:[]}}};
   if(p==='@/lib/regional/knowledge')return {KnowledgeError:class KnowledgeError extends Error{},storeDocument:async()=>{state.saved=(state.saved||0)+1;return {documentId:BOM,version:1,sha256:'a'.repeat(64)}}};
   return require(p);
