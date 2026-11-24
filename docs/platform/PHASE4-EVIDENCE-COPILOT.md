@@ -31,7 +31,7 @@ Optional server-only Groq action prioritization is controlled by:
     GROQ_API_KEY=<secret in private runtime>
     # optional GROQ_MODEL or NEXUS_PHASE4_MODEL
 
-The model receives only user question plus a bounded list of already-determined finding IDs/titles/severities. It does not receive the BOM, raw supplier pages, full quotations, datasheet excerpts, user identity or workspace data. It must return an exact JSON list of known IDs. Invalid/unavailable model responses fall back to deterministic ordering; **model output never becomes a fact, quote or citation**. Authentication, per-workspace budgets and separate model budgets apply. No user input is used as an instruction for tool execution.
+The model receives only user question plus a bounded list of already-determined finding IDs/categories/severities. It does not receive the BOM, raw supplier pages, full quotations, datasheet excerpts, user identity or workspace data. It must return an exact JSON list of known IDs. Invalid/unavailable model responses fall back to deterministic ordering; **model output never becomes a fact, quote or citation**. Authentication, per-workspace budgets and separate model budgets apply. No user input is used as an instruction for tool execution.
 
 ### Access, reliability and data retention
 
