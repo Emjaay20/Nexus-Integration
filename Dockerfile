@@ -22,7 +22,8 @@ RUN npm run build
 FROM node:22-bookworm-slim AS runtime
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.revision=$VCS_REF
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
+# Poppler extracts only user-uploaded, bounded PDF text layers (no remote PDF fetch, no OCR).
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl poppler-utils && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=go-builder /usr/local/bin/nexus-ingest /usr/local/bin/nexus-ingest
 COPY --from=rust-builder /usr/local/bin/platform-core /usr/local/bin/platform-cli /usr/local/bin/platform-mcp /usr/local/bin/
