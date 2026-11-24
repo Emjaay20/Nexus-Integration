@@ -32,3 +32,6 @@ test('50-line stress fixture completes with disclosed heuristic and no network',
 test('bounded arrays reject inputs that might exhaust server resources',()=>{const s=demoScenario(true);s.lines.push({...s.lines[0],id:'51'});assert.throws(()=>planBOM(s),PlanError);});
 test('duplicate supplier and offer identifiers are refused',()=>{const s=two();s.offers.push({...s.offers[0]});assert.throws(()=>planBOM(s),PlanError);});
 test('a missing line is reported by MPN instead of inventing a price',()=>{const s=two();s.lines.push({id:'line-1',mpn:'MISSING-IC',manufacturer:'Test',quantity:3});const r=planBOM(s);assert.equal(r.recommended,null);assert.equal(r.scenarios[0].complete,false);assert.equal(r.scenarios[0].uncovered[0].mpn,'MISSING-IC');});
+
+test('duplicate MPN lines must be consolidated before optimising shared stock',()=>{const s=two();s.lines.push({id:'line-1',mpn:'PART-1',manufacturer:'Test',quantity:2});assert.throws(()=>planBOM(s),/Duplicate MPN/);});
+test('synthetic international demo carries explicit USD source prices and FX',()=>{const s=demoScenario(false);const foreign=s.offers.find(x=>x.supplierId==='import-asia');assert.equal(foreign.currency,'USD');assert.equal(foreign.fx6,'1500000000');assert.equal(planBOM(s).scenarios[0].complete,true);});
