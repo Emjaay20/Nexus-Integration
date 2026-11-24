@@ -1,9 +1,11 @@
 'use client';
 import Link from 'next/link';
+import DatasheetWorkbench from '@/components/regional/DatasheetWorkbench';
+import ResearchQueue from '@/components/regional/ResearchQueue';
 import {useEffect,useState} from 'react';
 import {COUNTRIES,type Country} from '@/lib/regional/model';
 import {syntheticEvidence,findings,groundedAnswer,coverage,extractDatasheetText,type EvidenceSnapshot,type Finding,type CopilotAnswer,type DatasheetCandidate} from '@/lib/regional/intelligence';
-type Directory={workspaceId:string;boms:{id:string;name:string;revision:number}[]};
+type Directory={workspaceId:string;role:string;suppliers:{id:string;name:string;origin:string;researchEnabled:boolean}[];boms:{id:string;name:string;revision:number}[]};
 const countryNames:Record<Country,string>={NG:'Nigeria',US:'United States',GB:'United Kingdom',DE:'Germany',ZA:'South Africa',CN:'China'};
 const style={width:'100%',padding:'9px 10px',background:'transparent',color:'inherit',border:'1px solid var(--border, #aaa)',borderRadius:6};
 function cell(v:unknown){let text=v==null?'':String(v);if(/^[\s\uFEFF]*[=+@-]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';}
@@ -20,15 +22,16 @@ export default function Intelligence(){
  const [question,setQuestion]=useState('What are the biggest procurement risks?'),[response,setResponse]=useState<CopilotAnswer|null>(null);
  const [consent,setConsent]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [datasheet,setDatasheet]=useState(''),[specs,setSpecs]=useState<DatasheetCandidate[]>([]);
+ const [activeSelection,setActiveSelection]=useState<{workspaceId:string;bomId:string;revision:number;country:Country}|null>(null);
  useEffect(()=>{const demo=syntheticEvidence();setSnapshot(demo);setNotes(findings(demo));fetch('/api/regional-sourcing',{cache:'no-store'}).then(async res=>res.ok?res.json():null).then(d=>{if(d?.boms)setDir(d);}).catch(()=>{});},[]);
  const selected=dir?.boms.find(x=>x.id===bomId);
  const cov=snapshot?coverage(snapshot):null;
- function resetDemo(){const demo=syntheticEvidence();setSnapshot(demo);setNotes(findings(demo));setResponse(null);setError('');setMessage('Synthetic evidence loaded: no real supplier offers or datasheets are implied.');}
+ function resetDemo(){const demo=syntheticEvidence();setSnapshot(demo);setNotes(findings(demo));setResponse(null);setActiveSelection(null);setError('');setMessage('Synthetic evidence loaded: no real supplier offers or datasheets are implied.');}
  async function loadSaved(){if(!dir||!selected)return;setLoading(true);setError('');setMessage('');
   try{const query=new URLSearchParams({workspaceId:dir.workspaceId,bomId:selected.id,revision:String(selected.revision),country:destination});
    const res=await fetch('/api/regional-sourcing/evidence?'+query,{cache:'no-store',signal:AbortSignal.timeout(15000)});
    const data=await res.json();if(!res.ok)throw Error(data.error||'Evidence unavailable');
-   setSnapshot(data.snapshot);setNotes(data.findings);setResponse(null);setMessage('Loaded saved workspace evidence. Candidate observations remain unverified.');
+   setSnapshot(data.snapshot);setNotes(data.findings);setResponse(null);setActiveSelection({workspaceId:dir.workspaceId,bomId:selected.id,revision:selected.revision,country:destination});setMessage('Loaded saved workspace evidence. Candidate observations remain unverified.');
   }catch(e){setError(e instanceof Error?e.message:'Unable to read evidence');}finally{setLoading(false);}
  }
  async function ask(){if(!snapshot||!question.trim())return;setLoading(true);setError('');setResponse(null);
@@ -101,6 +104,8 @@ export default function Intelligence(){
     <button className="btn btn-primary" onClick={parseSpecs}>Extract review candidates</button>
     {specs.length>0?<div className="note" style={{marginTop:14}}>{specs.map(c=><p key={c.property}><strong>{c.property.replaceAll('_',' ')}:</strong> {c.value} · source line {c.line}<br/><small>Excerpt: {c.excerpt} · NOT verified</small></p>)}</div>:<p className="note">No extracted specifications yet. Unsupported formats and ambiguous text should remain unclassified.</p>}
    </section>
+   <DatasheetWorkbench selection={activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false?{workspaceId:activeSelection.workspaceId,bomId:activeSelection.bomId,revision:activeSelection.revision}:null} lines={snapshot.lines}/>
+   {activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false&&<ResearchQueue key={activeSelection.bomId+':'+activeSelection.revision+':'+activeSelection.country} selection={activeSelection} lines={snapshot.lines} suppliers={dir?.suppliers||[]} snapshot={snapshot}/>} 
    <section className="result-section"><h2>6. Next action: fill evidence gaps</h2>
      {notes.filter(n=>n.kind==='missing_quote').slice(0,10).map(n=><p key={n.id}><strong>{n.title}</strong> — {n.detail}</p>)}
      <p>Missing parts can be researched in <Link href="/regional-sourcing">Regional Sourcing</Link> using a permitted SmartCrawl product URL, or a quotation can be entered manually. Research is never automatically turned into a priced supplier offer.</p>
