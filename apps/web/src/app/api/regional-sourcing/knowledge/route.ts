@@ -17,7 +17,7 @@ async function actor():Promise<Member>{
  const res=await forwardWorkspace('context',undefined,{method:'GET'});
  if(!res.ok)throw new KnowledgeError(res.status===401?401:503,res.status===401?'Sign in to access knowledge base':'Workspace temporarily unavailable');
  const a=record(record(await res.json()).actor);
- if(!['owner','design_engineer','viewer'].includes(a.role))throw new KnowledgeError(403,'Workspace role unavailable');
+ if(!['owner','design_engineer','viewer'].includes(String(a.role)))throw new KnowledgeError(403,'Workspace role unavailable');
  return {userId:uuid(a.user_id),workspaceId:uuid(a.workspace_id),role:String(a.role)};
 }
 export async function GET(req:Request){
