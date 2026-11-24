@@ -5,7 +5,7 @@ type Item={id:string;name:string;mpn:string;line_index:number;active_version:num
 type Version={id:string;version:number;sha256:string;source_name:string;page_count:number;truncated:boolean;created_at:string;properties:{property:string;value:string;citation:string}[]};
 type Hit={document_id:string;name:string;sha256:string;version:number;page_number:number;excerpt:string;rank:number;citation:string};
 const field={padding:8,width:'100%',background:'transparent',color:'inherit',border:'1px solid var(--border, #aaa)',borderRadius:6};
-export default function KnowledgeLibrary({selection,refresh,onChooseVersion}:{selection:Selection;refresh:number;onChooseVersion:(id:string)=>void}){
+export default function KnowledgeLibrary({selection,refresh,onChooseVersion,readOnly=false}:{selection:Selection;refresh:number;onChooseVersion:(id:string)=>void;readOnly?:boolean}){
  const [documents,setDocuments]=useState<Item[]>([]),[versions,setVersions]=useState<Version[]>([]),[hits,setHits]=useState<Hit[]>([]);
  const [query,setQuery]=useState('operating voltage'),[selected,setSelected]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const params=useCallback((extras:Record<string,string>={})=>new URLSearchParams({workspaceId:selection.workspaceId,bomId:selection.bomId,revision:String(selection.revision),...extras}),[selection.workspaceId,selection.bomId,selection.revision]);
@@ -40,13 +40,14 @@ export default function KnowledgeLibrary({selection,refresh,onChooseVersion}:{se
   <h2>Persistent engineering knowledge base</h2>
   <p>Extracted datasheet text and source hashes can be saved by explicit opt-in. Search and version history are private to this active workspace and BOM. The original PDF bytes are not stored.</p>
   {error&&<p className="note error" role="alert">{error}</p>}{message&&<p className="note" role="status">{message}</p>}
+  {readOnly&&<p className="note">Viewer access is read-only. Document management requires an owner or design engineer.</p>}
   {documents.length===0?<p>No stored documents yet. Enable “Save extracted text” in the PDF workbench and upload a PDF.</p>:
    documents.map(d=><article key={d.id} className="note"><p><strong>{d.name}</strong> · {d.mpn} · active version {d.active_version} · {d.page_count} page(s){d.truncated?' · Partial':''}</p>
     <p><small>SHA-256: <code style={{overflowWrap:'anywhere'}}>{d.sha256}</code></small></p>
     <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
      <button className="btn btn-secondary btn-sm" disabled={busy} onClick={()=>void history(d.id)}>History</button>
-     <button className="btn btn-secondary btn-sm" onClick={()=>{onChooseVersion(d.id);setMessage('Selected for next version upload: '+d.name);}}>Use as version target</button>
-     <button className="btn btn-secondary btn-sm" disabled={busy} onClick={()=>void remove(d.id)}>Delete stored text</button>
+     {!readOnly&&<button className="btn btn-secondary btn-sm" onClick={()=>{onChooseVersion(d.id);setMessage('Selected for next version upload: '+d.name);}}>Use as version target</button>}
+     {!readOnly&&<button className="btn btn-secondary btn-sm" disabled={busy} onClick={()=>void remove(d.id)}>Delete stored text</button>}
     </div>
    </article>)}
   {selected&&versions.length>0&&<div className="note"><h3>Document versions</h3>{versions.map(v=><p key={v.id}>Version {v.version} · {v.source_name} · {v.page_count} pages · SHA-256 {v.sha256.slice(0,16)}… · {new Date(v.created_at).toLocaleString()}</p>)}</div>}
