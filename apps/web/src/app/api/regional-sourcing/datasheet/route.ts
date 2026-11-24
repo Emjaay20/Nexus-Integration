@@ -4,6 +4,7 @@ import {consumeLimit} from '@/lib/request-limits';
 import {allowsMutation} from '@/lib/request-origin';
 import {record,uuid} from '@/lib/regional/model';
 import {extractPDF,PdfError} from '@/lib/regional/pdf-extract';
+import {KnowledgeError,storeDocument} from '@/lib/regional/knowledge';
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
 const headers={'Cache-Control':'no-store'};
@@ -11,6 +12,7 @@ class UploadError extends Error{constructor(readonly status:number,message:strin
 function reply(value:unknown,status=200){return Response.json(value,{status,headers});}
 function fail(e:unknown){
  if(e instanceof UploadError)return reply({error:e.message},e.status);
+ if(e instanceof KnowledgeError)return reply({error:e.message},e.status);
  if(e instanceof PdfError)return reply({error:'PDF text extraction unavailable or unsupported',reason:e.code},422);
  return reply({error:'Datasheet processing temporarily unavailable. No document evidence was saved.'},503);
 }
@@ -67,6 +69,11 @@ export async function POST(req:Request){
   });
   const bytes=new Uint8Array(await file.arrayBuffer());
   const doc=await extractPDF(bytes,file.name);
-  return reply({document:doc,part,disclaimer:'Uploaded document is not authenticated. Page citations refer to the uploaded PDF text layer only; no engineering alternative is qualified. File bytes are deleted after processing.'});
+  // An explicit opt-in persists only extracted text, properties and hashes—not the PDF file itself.
+  const persist=form.get('persist')==='true';
+  const existing=form.get('documentId');
+  if(existing!==null&&(!persist||typeof existing!=='string'))throw new UploadError(400,'Document versioning requires explicit save');
+  const saved=persist?await storeDocument({userId,workspaceId,role:String(actor.role)},{bomId,revision,line},doc,existing?uuid(existing):null):null;
+  return reply({document:doc,part,saved,disclaimer:'Uploaded document is not authenticated. Source PDF bytes are removed after extraction; only extracted text is persisted when you explicitly select Save to knowledge base. No engineering alternative is qualified.'});
  }catch(e){return fail(e);}
 }
