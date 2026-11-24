@@ -15,7 +15,7 @@ export async function requireBom(tx:Tx,actor:Member,bomId:string,rev:number,writ
  const membership=await tx.query('SELECT m.role FROM platform_memberships m JOIN platform_user_context c ON c.user_id=m.user_id AND c.workspace_id=m.workspace_id WHERE m.user_id=$1 AND m.workspace_id=$2 FOR SHARE OF m,c',[actor.userId,actor.workspaceId]);
  const role=membership.rows[0]?.role;
  if(!role||!['owner','design_engineer','viewer'].includes(role)||write&&!['owner','design_engineer'].includes(role)||write&&actor.userId==='00000000-0000-0000-0000-000000000001')throw new KnowledgeError(403,'Workspace membership does not permit this operation');
- const result=await tx.query('SELECT id,revision,name,items FROM platform_boms WHERE id=$1 AND workspace_id=$2 FOR SHARE',[bomId,actor.workspaceId]);
+ const result=await tx.query('SELECT id,revision,name,items FROM platform_boms WHERE id=$1 AND workspace_id=$2 '+(write?'FOR UPDATE':'FOR SHARE'),[bomId,actor.workspaceId]);
  if(!result.rows.length)throw new KnowledgeError(404,'BOM not found');
  const bom=result.rows[0];
  if(Number(bom.revision)!==rev)throw new KnowledgeError(409,'BOM revision changed. Reload before continuing.');
@@ -45,7 +45,6 @@ export async function storeDocument(actor:Member,loc:Location,doc:DatasheetDocum
    if(!previous.rows.length||Number(previous.rows[0].line_index)!==loc.line||String(previous.rows[0].mpn).toUpperCase()!==mpn.toUpperCase())throw new KnowledgeError(409,'Document does not belong to the selected BOM component');
   }else{
    // Serializes per BOM capacity across all concurrently uploaded documents.
-   await tx.query('SELECT id FROM platform_boms WHERE workspace_id=$1 AND id=$2 FOR UPDATE',[actor.workspaceId,loc.bomId]);
    const count=await tx.query('SELECT count(*)::int AS total FROM platform_knowledge_documents WHERE workspace_id=$1 AND bom_id=$2',[actor.workspaceId,loc.bomId]);
    if(Number(count.rows[0].total)>=5)throw new KnowledgeError(409,'At most five documents can be saved per BOM');
    id=randomUUID();
@@ -75,7 +74,7 @@ export async function listKnowledge(actor:Member,bomId:string,rev:number,query:s
    const versions=await tx.query('SELECT v.id,v.document_id,v.version,v.sha256,v.source_name,v.page_count,v.truncated,v.properties,v.created_at,d.line_index,d.mpn FROM platform_knowledge_versions v JOIN platform_knowledge_documents d ON d.id=v.document_id AND d.workspace_id=v.workspace_id WHERE v.workspace_id=$1 AND d.bom_id=$2 AND v.document_id=$3 ORDER BY v.version DESC LIMIT 20',[actor.workspaceId,bomId,id]);
    return {documents:[],versions:versions.rows,hits:[]};
   }
-  const docs=await tx.query('SELECT d.id,d.line_index,d.mpn,d.name,d.active_version,d.updated_at,v.sha256,v.page_count,v.truncated FROM platform_knowledge_documents d LEFT JOIN platform_knowledge_versions v ON v.workspace_id=d.workspace_id AND v.document_id=d.id AND v.version=d.active_version WHERE d.workspace_id=$1 AND d.bom_id=$2 ORDER BY d.updated_at DESC,id DESC LIMIT 5',[actor.workspaceId,bomId]);
+  const docs=await tx.query('SELECT d.id,d.line_index,d.mpn,d.name,d.active_version,d.updated_at,v.sha256,v.page_count,v.truncated FROM platform_knowledge_documents d LEFT JOIN platform_knowledge_versions v ON v.workspace_id=d.workspace_id AND v.document_id=d.id AND v.version=d.active_version WHERE d.workspace_id=$1 AND d.bom_id=$2 ORDER BY d.updated_at DESC,d.id DESC LIMIT 5',[actor.workspaceId,bomId]);
   let hits:unknown[]=[];
   if(query!==null){
    if(typeof query!=='string'||query.length<2||query.length>160||!/[\p{L}\p{N}]/u.test(query))throw new KnowledgeError(400,'Search query must contain 2–160 meaningful characters');
