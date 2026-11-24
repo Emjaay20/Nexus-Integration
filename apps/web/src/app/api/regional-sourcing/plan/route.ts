@@ -53,6 +53,10 @@ export async function GET(req:Request){
     if(!line||Number(row.quantity)!==line.quantity) {ignored++;continue;}
     const oldPart=record(row.part),q=record(row.result) as unknown as Quote;
     if(typeof oldPart.partNumber!=='string'||oldPart.partNumber.trim().toUpperCase()!==line.mpn.trim().toUpperCase()||q.quotedQuantity!==line.quantity){ignored++;continue;}
+    if(typeof oldPart.manufacturer==='string'&&line.manufacturer&&oldPart.manufacturer.trim().toUpperCase()!==line.manufacturer.trim().toUpperCase()){ignored++;continue;}
+    // Earlier saved quotes can lack a real FX conversion. Exclude rather than fabricating a rate.
+    if(!Number.isSafeInteger(q.fx6)||q.fx6===null||q.fx6<=0||!Number.isSafeInteger(q.unitPrice4)||q.unitPrice4<=0){ignored++;continue;}
+    if(typeof q.currency!=='string'||typeof q.validUntil!=='string'){ignored++;continue;}
     const supplier=supplierFor(row.supplier_id);
     const source:PlanOffer={
       id:'quote-'+offers.length,lineId:line.id,supplierId:supplier.id,mpn:line.mpn,manufacturer:line.manufacturer,
