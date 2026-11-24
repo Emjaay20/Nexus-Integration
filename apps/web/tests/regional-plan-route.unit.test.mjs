@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const USER='12345678-1234-4321-8123-123456789abc';
+const WS='22345678-1234-4321-8123-123456789abc';
+const BOM='32345678-1234-4321-8123-123456789abc';
+const quote={currency:'NGN',unitPrice4:10000,shipping2:0,fees2:0,fx6:1000000,stock:10,moq:1,validUntil:'2099-01-01T00:00:00.000Z',identityConfirmed:true,destinationConfirmed:true,quotedQuantity:10};
+const row={line_index:0,quantity:10,part:{partNumber:'ESP32-WROOM-32E',manufacturer:'Espressif'},supplier_id:'microscale',result:quote,created_at:new Date().toISOString()};
+function mock(options={}){
+ const state={queries:[],...options};
+ const modules={};
+ const load=file=>{
+  if(modules[file])return modules[file];
+  const src=fs.readFileSync(new URL('../src/'+file,import.meta.url),'utf8');
+  const code=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2017}}).outputText;
+  const m={exports:{}};
+  const deps=p=>{
+   if(p==='@/lib/core-workspace')return {forwardWorkspace:async()=>state.unauth?Response.json({}, {status:401}):Response.json({actor:{user_id:USER,workspace_id:WS,role:state.role||'owner'}})};
+   if(p==='@/lib/db')return {db:{transaction:async f=>f({query:async (sql,args)=>{state.queries.push({sql,args});
+     if(sql.includes('platform_memberships'))return {rows:state.revoked?[]:[{role:state.role||'owner'}]};
+     if(sql.includes('FROM platform_boms'))return {rows:state.missingBom?[]:[{name:'My BOM',revision:state.revision||1,items:[{partNumber:'ESP32-WROOM-32E',manufacturer:'Espressif',quantity:10}]}]};
+     if(sql.includes('FROM platform_regional_sourcing'))return {rows:state.quoteRows||[row]};
+     throw Error('Unexpected query '+sql);
+   }})}};
+   if(p==='@/lib/request-limits')return {consumeLimit:async()=>!state.blocked};
+   if(p==='@/lib/regional/model')return load('lib/regional/model.ts');
+   if(p==='@/lib/regional/planner')return load('lib/regional/planner.ts');
+   if(p==='./model')return load('lib/regional/model.ts');
+   return require(p);
+  };
+  new Function('require','module','exports',code)(deps,m,m.exports);
+  modules[file]=m.exports;return m.exports;
+ };
+ const api=load('app/api/regional-sourcing/plan/route.ts');
+ const params={workspaceId:WS,bomId:BOM,revision:'1',country:'NG',buildQty:'1'};
+ const get=(overrides={})=>api.GET(new Request('https://nexus.example/api/regional-sourcing/plan?'+new URLSearchParams({...params,...overrides})));
+ return {state,get};
+}
+test('anonymous cannot read private BOM quotations',async()=>{const x=mock({unauth:true});assert.equal((await x.get()).status,401);assert.equal(x.state.queries.length,0);});
+test('workspace ID cannot be forged',async()=>{const x=mock();assert.equal((await x.get({workspaceId:USER})).status,409);assert.equal(x.state.queries.length,0);});
+test('revoked membership denies access',async()=>{const x=mock({revoked:true});assert.equal((await x.get()).status,403);});
+test('viewer may read their own scoped quote planning, with no mutations',async()=>{const x=mock({role:'viewer'});const response=await x.get();assert.equal(response.status,200);const data=await response.json();assert.equal(data.result.scenarios[0].totalMinor,'1000');assert.equal(data.scenario.offers[0].evidence,'customer_reported');assert.ok(x.state.queries.find(q=>q.sql.includes('WHERE workspace_id=$1')));assert.ok(!x.state.queries.find(q=>/\bINSERT\b|\bUPDATE\b|\bDELETE\b/.test(q.sql)));});
+test('stale BOM revision cannot read offers',async()=>{const x=mock({revision:2});assert.equal((await x.get()).status,409);});
+test('missing or incomplete saved quote remains unsourced',async()=>{const x=mock({quoteRows:[{...row,result:{...quote,fx6:null}}]});const r=await x.get();assert.equal(r.status,200);const data=await r.json();assert.equal(data.ignoredQuotes,1);assert.equal(data.result.scenarios[0].totalMinor,null);assert.equal(data.result.scenarios[0].complete,false);});
+test('different saved quote quantity is not silently repriced for batch',async()=>{const x=mock();const r=await x.get({buildQty:'2'});assert.equal(r.status,200);const data=await r.json();assert.equal(data.result.scenarios[0].complete,false);});
+test('DB-backed rate limit rejects before querying BOM',async()=>{const x=mock({blocked:true});assert.equal((await x.get()).status,429);assert.equal(x.state.queries.length,0);});
+test('missing BOM returns 404 without fabricated results',async()=>{const x=mock({missingBom:true});assert.equal((await x.get()).status,404);});
