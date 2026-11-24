@@ -22,7 +22,7 @@ async function bounded(res:Response,max:number):Promise<unknown>{
 export async function prioritize(question:string,items:Finding[],env:NodeJS.ProcessEnv=process.env,fetcher:typeof fetch=fetch):Promise<string[]|null>{
  if(!modelEnabled(env)||!items.length||typeof question!=='string'||question.length>500)return null;
  // Only already-grounded finding titles and IDs are shared; never raw pages, quotes, keys, or workspace identities.
- const tasks=items.slice(0,12).map(x=>({id:x.id,title:x.title,severity:x.severity}));
+ const tasks=items.slice(0,12).map(x=>({id:x.id,category:x.kind,severity:x.severity}));
  try{
   const res=await fetcher('https://api.groq.com/openai/v1/chat/completions',{
    method:'POST',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(7000),
