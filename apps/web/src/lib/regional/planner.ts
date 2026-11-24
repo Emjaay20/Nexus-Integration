@@ -36,12 +36,15 @@ export function validateScenario(x:PlanScenario):PlanScenario{
  valid(Array.isArray(x.lines)&&x.lines.length>0&&x.lines.length<=50,'Provide 1 to 50 BOM lines');
  valid(Array.isArray(x.suppliers)&&x.suppliers.length>0&&x.suppliers.length<=8,'Provide 1 to 8 suppliers');
  valid(Array.isArray(x.offers)&&x.offers.length<=500,'Too many offers');
- const lines=new Set<string>(), suppliers=new Set<string>(),offers=new Set<string>();
+ const lines=new Set<string>(), components=new Set<string>(), suppliers=new Set<string>(),offers=new Set<string>();
  for(const l of x.lines){
    valid(l&&typeof l==='object'&&ID.test(l.id)&&!lines.has(l.id),'Duplicate or invalid line ID');
    valid(typeof l.mpn==='string'&&MPN.test(l.mpn),'Invalid MPN');
    valid(typeof l.manufacturer==='string'&&l.manufacturer.length<=160,'Invalid manufacturer');
-   valid(int(l.quantity,10000),'Invalid required quantity');lines.add(l.id);
+   valid(int(l.quantity,10000),'Invalid required quantity');
+   const component=l.mpn.trim().toUpperCase();
+   valid(!components.has(component),'Duplicate MPN across BOM lines: consolidate quantities to avoid counting shared supplier stock twice');
+   components.add(component);lines.add(l.id);
  }
  for(const s of x.suppliers){
    valid(s&&typeof s==='object'&&ID.test(s.id)&&!suppliers.has(s.id),'Duplicate or invalid supplier ID');
@@ -219,10 +222,11 @@ export function demoScenario(large=false):PlanScenario{
  const offers:PlanOffer[]=[];
  for(const [i,l] of lines.entries())for(const [j,s] of suppliers.entries()){
   const unit=BigInt(Math.round((1800+i%7*300)*(j===0?1:j===1?0.84:0.63)));
+  const unitPrice4=j===2?unit*BigInt(10000)/BigInt(1500):unit*BigInt(10000);
   offers.push({id:'offer-'+i+'-'+j,lineId:l.id,supplierId:s.id,mpn:l.mpn,manufacturer:l.manufacturer,
     stock:j===0&&i%5===1?3:100,moq:j===2?2:1,minQuantity:1,maxQuantity:100,
-    tiers:[{minQty:1,unitPrice4:(unit*BigInt(10000)).toString()},{minQty:10,unitPrice4:(unit*BigInt(9200)).toString()}],
-    currency:'NGN',fx6:'1000000',shipping2:'0',fees2:'0',validUntil:'2099-01-01T00:00:00.000Z',
+    tiers:[{minQty:1,unitPrice4:unitPrice4.toString()},{minQty:10,unitPrice4:(unitPrice4*BigInt(92)/BigInt(100)).toString()}],
+    currency:j===2?'USD':'NGN',fx6:j===2?'1500000000':'1000000',shipping2:'0',fees2:'0',validUntil:'2099-01-01T00:00:00.000Z',
     identityConfirmed:true,destinationConfirmed:true,evidence:'illustrative'});
  }
  return {label:large?'50-line synthetic procurement stress scenario':'IoT monitoring board — synthetic BOM',country:'NG',currency:'NGN',lines,suppliers,offers};
