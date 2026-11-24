@@ -18,7 +18,7 @@ async function actor():Promise<Member>{
  const r=await forwardWorkspace('context',undefined,{method:'GET'});
  if(!r.ok)throw new KnowledgeError(r.status===401?401:503,r.status===401?'Sign in to manage research':'Workspace temporarily unavailable');
  const a=record(record(await r.json()).actor);
- if(!['owner','design_engineer','viewer'].includes(a.role))throw new KnowledgeError(403,'Invalid workspace role');
+ if(!['owner','design_engineer','viewer'].includes(String(a.role)))throw new KnowledgeError(403,'Invalid workspace role');
  return {userId:uuid(a.user_id),workspaceId:uuid(a.workspace_id),role:String(a.role)};
 }
 export async function GET(request:Request){
