@@ -8,7 +8,7 @@ type BomSummary={id:string;name:string;revision:number};
 type Directory={workspaceId:string;boms:BomSummary[]};
 const labels:Record<Country,string>={NG:'Nigeria',US:'United States',GB:'United Kingdom',DE:'Germany',ZA:'South Africa',CN:'China'};
 const field={width:'100%',maxWidth:420,padding:10,borderRadius:6,background:'transparent',color:'inherit',border:'1px solid var(--border, #aaa)'};
-function amount(value:string|undefined,currency:string){if(value===undefined)return 'Unavailable';const n=BigInt(value);return currency+' '+(n/100n).toLocaleString()+'.'+(n%100n).toString().padStart(2,'0');}
+function amount(value:string|undefined,currency:string){if(value===undefined)return 'Unavailable';const n=BigInt(value);return currency+' '+(n/BigInt(100)).toLocaleString()+'.'+(n%BigInt(100)).toString().padStart(2,'0');}
 function csvCell(value:unknown){let str=value==null?'':String(value);if(/^[\s\uFEFF]*[=+@-]/.test(str))str="'"+str;return '"'+str.replaceAll('"','""')+'"';}
 function downloadCSV(result:PlanResult){
  const rows:unknown[][]=[['plan','method','line','mpn','supplier','quantity','cost_minor','currency','evidence']];
