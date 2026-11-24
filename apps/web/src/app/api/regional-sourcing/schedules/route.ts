@@ -3,7 +3,7 @@ import {consumeLimit,limitedJson} from '@/lib/request-limits';
 import {allowsMutation} from '@/lib/request-origin';
 import {record,uuid,InputError} from '@/lib/regional/model';
 import {KnowledgeError,revisionNumber,type Member} from '@/lib/regional/knowledge';
-import {createSchedule,listSchedules,changeSchedule} from '@/lib/regional/research-schedules';
+import {createSchedule,listSchedules,changeSchedule,clockConfigured} from '@/lib/regional/research-schedules';
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
 const headers={'Cache-Control':'no-store'};
@@ -28,7 +28,7 @@ export async function GET(request:Request){
   const p=new URL(request.url).searchParams;
   if(uuid(p.get('workspaceId'))!==a.workspaceId)throw new KnowledgeError(409,'Active workspace changed');
   const data=await listSchedules(a,uuid(p.get('bomId')),revisionNumber(p.get('revision')));
-  return result({schedules:data,schedulerEnabled:process.env.NEXUS_RESEARCH_SCHEDULER_ENABLED==='true'});
+  return result({schedules:data,schedulerEnabled:clockConfigured()});
  }catch(e){return fail(e);}
 }
 export async function POST(request:Request){
