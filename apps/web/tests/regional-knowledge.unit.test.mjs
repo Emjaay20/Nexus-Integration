@@ -28,7 +28,7 @@ function fixture(opts={}){
   if(sql.startsWith('DELETE FROM platform_knowledge_documents')){if(!state.documents.has(args[2]))return {rows:[]};state.documents.delete(args[2]);return {rows:[{id:args[2]}]};}
   throw Error('Unexpected query '+sql);
  };
- const mock={transaction:fn=>fn({query:run})},requireModel:{record:x=>{if(!x||typeof x!=='object'||Array.isArray(x))throw Error('Invalid');return x},uuid:x=>{if(typeof x!=='string'||!/^[a-f0-9]{8}-[a-f0-9-]{27}$/i.test(x))throw Error('invalid uuid');return x}}};
+ const mock={transaction:fn=>fn({query:run}),requireModel:{record:x=>{if(!x||typeof x!=='object'||Array.isArray(x))throw Error('Invalid');return x},uuid:x=>{if(typeof x!=='string'||!/^[a-f0-9]{8}-[a-f0-9-]{27}$/i.test(x))throw Error('invalid uuid');return x}}};
  const source=fs.readFileSync(new URL('../src/lib/regional/knowledge.ts',import.meta.url),'utf8');
  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2017}}).outputText;
  const m={exports:{}};new Function('require','module','exports',compiled)(p=>p==='@/lib/db'?{db:mock}:p==='./model'?mock.requireModel:require(p),m,m.exports);
