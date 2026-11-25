@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import DatasheetWorkbench from '@/components/regional/DatasheetWorkbench';
 import ResearchQueue from '@/components/regional/ResearchQueue';
+import ScheduleManager from '@/components/regional/ScheduleManager';
 import {useEffect,useState} from 'react';
 import {COUNTRIES,type Country} from '@/lib/regional/model';
 import {syntheticEvidence,findings,groundedAnswer,coverage,extractDatasheetText,type EvidenceSnapshot,type Finding,type CopilotAnswer,type DatasheetCandidate} from '@/lib/regional/intelligence';
@@ -104,8 +105,9 @@ export default function Intelligence(){
     <button className="btn btn-primary" onClick={parseSpecs}>Extract review candidates</button>
     {specs.length>0?<div className="note" style={{marginTop:14}}>{specs.map(c=><p key={c.property}><strong>{c.property.replaceAll('_',' ')}:</strong> {c.value} · source line {c.line}<br/><small>Excerpt: {c.excerpt} · NOT verified</small></p>)}</div>:<p className="note">No extracted specifications yet. Unsupported formats and ambiguous text should remain unclassified.</p>}
    </section>
-   <DatasheetWorkbench selection={activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false?{workspaceId:activeSelection.workspaceId,bomId:activeSelection.bomId,revision:activeSelection.revision}:null} lines={snapshot.lines}/>
-   {activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false&&<ResearchQueue key={activeSelection.bomId+':'+activeSelection.revision+':'+activeSelection.country} selection={activeSelection} lines={snapshot.lines} suppliers={dir?.suppliers||[]} snapshot={snapshot}/>} 
+   <DatasheetWorkbench selection={activeSelection&&snapshot.demo===false?{workspaceId:activeSelection.workspaceId,bomId:activeSelection.bomId,revision:activeSelection.revision}:null} lines={snapshot.lines} canWrite={dir?.role!=='viewer'}/>
+   {activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false&&<ResearchQueue key={activeSelection.bomId+':'+activeSelection.revision+':'+activeSelection.country} selection={activeSelection} lines={snapshot.lines} suppliers={dir?.suppliers||[]} snapshot={snapshot}/>}
+   {activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false&&<ScheduleManager key={'schedule:'+activeSelection.bomId+':'+activeSelection.revision+':'+activeSelection.country} selection={activeSelection} lines={snapshot.lines} suppliers={dir?.suppliers||[]} snapshot={snapshot}/>} 
    <section className="result-section"><h2>6. Next action: fill evidence gaps</h2>
      {notes.filter(n=>n.kind==='missing_quote').slice(0,10).map(n=><p key={n.id}><strong>{n.title}</strong> — {n.detail}</p>)}
      <p>Missing parts can be researched in <Link href="/regional-sourcing">Regional Sourcing</Link> using a permitted SmartCrawl product URL, or a quotation can be entered manually. Research is never automatically turned into a priced supplier offer.</p>
