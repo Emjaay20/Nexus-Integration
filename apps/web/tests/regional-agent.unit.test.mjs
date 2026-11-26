@@ -100,3 +100,12 @@ test('agent does not add pricing, purchases, crawls or file side effects',()=>{
  assert.ok(p.tasks.every(t=>t.handoff==='regional_sourcing'||t.handoff==='research_queue'||t.handoff==='datasheet_workbench'));
  assert.ok(p.tasks.every(t=>!('price' in t)&&!('execute' in t)));
 });
+
+test('single-source exposure is flagged without claiming an actual supplier outage',()=>{
+ const s=demo(),p=planResearch(s,[],[],NOW);
+ const t=p.tasks.find(x=>x.action==='diversify_supplier'&&x.lineId==='line-0');
+ assert.ok(t);assert.ok(t.citations.length===1&&t.citations[0].startsWith('Q'));
+ assert.match(t.reason,/Only one distinct supplier/);
+ assert.match(t.reason,/does not prove/);
+ assert.equal(t.approvalRequired,true);
+});
