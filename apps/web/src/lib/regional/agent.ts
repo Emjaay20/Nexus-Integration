@@ -3,7 +3,7 @@
  * Returns proposals only. It cannot authorize crawls, place orders, infer
  * missing commercial values or approve electrical substitutions.
  */
-import {coverage,type EvidenceSnapshot,type EvidenceRow} from './intelligence';
+import {coverage,syntheticEvidence,type EvidenceSnapshot,type EvidenceRow} from './intelligence';
 
 export type AgentDocument={
   documentId:string;lineIndex:number;name:string;sha256:string;version:number;
@@ -122,9 +122,6 @@ export function answerAgent(plan:AgentPlan,question:string){
  const actions=related.slice(0,8);
  return {question,summary:plan.summary,actions,disclaimer:'This is a read-only review plan. Citations refer only to available evidence and page excerpts. No purchase, crawl, price confirmation or engineering substitution has occurred.'};
 }
-export function syntheticAgentPlan(now=Date.now()){
- // Reference the same Phase 4 synthetic evidence. No commercial provider or external model is used.
- const {syntheticEvidence}=requireSynthetic();
+export function syntheticAgentPlan(now=Date.now()):AgentPlan{
  return planResearch(syntheticEvidence(now),[],[],now);
 }
-function requireSynthetic(){return {syntheticEvidence:():never=>{throw new Error('Use planResearch(syntheticEvidence()) from the caller');}};}
