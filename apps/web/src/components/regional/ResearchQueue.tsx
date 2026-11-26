@@ -66,7 +66,7 @@ export default function ResearchQueue({selection,lines,suppliers,snapshot}:{sele
    setSaved(v=>v.map(x=>x.id===row.id?result:x));setNotice('Checked existing SmartCrawl job. Reload evidence after completion.');
   }catch(e){setError(e instanceof Error?e.message:'Poll failed');}finally{setBusy(false);}
  }
- return <section className="result-section">
+ return <section id="nexus-research-queue" className="result-section">
   <h2>Automated research queue (authorised sources only)</h2>
   <p>Select missing BOM lines and exact product URLs at operator-approved suppliers. This batches up to three explicit research submissions using the existing audited SmartCrawl workflow. No search-engine scraping, price guessing, or background retries.</p>
   {!approved.length?<p className="note">No suppliers have authorised SmartCrawl access configured. Manual quotation entry and the synthetic demonstrations remain available. Configure source-specific permissions before crawling.</p>:<>

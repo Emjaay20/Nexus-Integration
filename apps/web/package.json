@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.unit.test.mjs",
-    "eval:phase6": "node scripts/evaluate-phase6.mjs"
+    "eval:phase6": "node scripts/evaluate-phase6.mjs",
+    "eval:phase7": "node scripts/evaluate-phase7.mjs",
+    "acceptance:phase7": "node scripts/acceptance-phase7.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.13.0",
