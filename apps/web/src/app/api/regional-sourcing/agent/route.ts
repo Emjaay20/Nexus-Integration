@@ -48,12 +48,13 @@ export async function GET(req:Request){
    const worker=workerResults.rows[0];
    const results=worker?.result&&typeof worker.result==='object'&&!Array.isArray(worker.result)?(worker.result as Record<string,unknown>).results:null;
    const parts=Array.isArray(results)&&results.length===lines.length?results as WorkerPart[]:[];
-   const docs=await tx.query('SELECT d.id AS document_id,d.line_index,d.name,v.sha256,v.version,v.page_count,v.truncated FROM platform_knowledge_documents d JOIN platform_knowledge_versions v ON v.workspace_id=d.workspace_id AND v.document_id=d.id AND v.version=d.active_version WHERE d.workspace_id=$1 AND d.bom_id=$2 ORDER BY d.updated_at DESC LIMIT 5',[a.workspaceId,bomId]);
-   const documents:AgentDocument[]=docs.rows.map(row=>({documentId:String(row.document_id),lineIndex:Number(row.line_index),name:String(row.name),sha256:String(row.sha256),version:Number(row.version),pageCount:Number(row.page_count),truncated:row.truncated===true}));
+   const docs=await tx.query('SELECT d.id AS document_id,d.line_index,d.name,d.mpn,v.sha256,v.version,v.page_count,v.truncated FROM platform_knowledge_documents d JOIN platform_knowledge_versions v ON v.workspace_id=d.workspace_id AND v.document_id=d.id AND v.version=d.active_version WHERE d.workspace_id=$1 AND d.bom_id=$2 ORDER BY d.updated_at DESC LIMIT 5',[a.workspaceId,bomId]);
+   const documents:AgentDocument[]=docs.rows.filter(row=>{const idx=Number(row.line_index);return Number.isInteger(idx)&&idx>=0&&idx<lines.length&&String(row.mpn).trim().toUpperCase()===lines[idx].mpn.trim().toUpperCase();}).map(row=>({documentId:String(row.document_id),lineIndex:Number(row.line_index),name:String(row.name),sha256:String(row.sha256),version:Number(row.version),pageCount:Number(row.page_count),truncated:row.truncated===true}));
    let hits:AgentHit[]=[];
    if(topic!==null&&documents.length){
     const match=await tx.query("SELECT d.id AS document_id,d.line_index,d.name,v.sha256,v.version,p.page_number,substring(ts_headline('simple',p.text_content,plainto_tsquery('simple',$3),'StartSel=[,StopSel=],MaxWords=35,MinWords=12,MaxFragments=1'),1,280) AS excerpt,ts_rank_cd(p.text_search,plainto_tsquery('simple',$3)) AS rank FROM platform_knowledge_documents d JOIN platform_knowledge_versions v ON v.document_id=d.id AND v.workspace_id=d.workspace_id AND v.version=d.active_version JOIN platform_knowledge_pages p ON p.version_id=v.id AND p.workspace_id=v.workspace_id WHERE d.workspace_id=$1 AND d.bom_id=$2 AND p.text_search @@ plainto_tsquery('simple',$3) ORDER BY rank DESC,d.id,p.page_number LIMIT 15",[a.workspaceId,bomId,topic]);
-    hits=match.rows.map(row=>({
+    const allowed=new Map(documents.map(d=>[d.documentId,d]));
+    hits=match.rows.filter(row=>{const d=allowed.get(String(row.document_id));return !!d&&d.lineIndex===Number(row.line_index)&&d.sha256===String(row.sha256)&&d.version===Number(row.version);}).map(row=>({
       documentId:String(row.document_id),lineIndex:Number(row.line_index),document:String(row.name),
       sha256:String(row.sha256),version:Number(row.version),page:Number(row.page_number),
       excerpt:String(row.excerpt).slice(0,280),rank:Number(row.rank),
