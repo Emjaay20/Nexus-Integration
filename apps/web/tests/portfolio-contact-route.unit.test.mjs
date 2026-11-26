@@ -29,7 +29,7 @@ function harness(state={}){
  }
  async function run(data=base){setFetch();try{
   const request=new Request('https://nexus.example/api/portfolio/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-  return processRoute.POST(request);
+  return await processRoute.POST(request);
  }finally{globalThis.fetch=current;}}
  return {log,run,api:processRoute};
 }
@@ -72,6 +72,6 @@ test('FlowMeet idempotency conflict is exposed as a safe retry failure',async()=
 test('upstream failure or ambiguous response is never claimed as delivered',async()=>{
  for(const state of [{upstreamStatus:503},{upstream:{success:false}},{outboundThrows:true}]){
   const x=harness(state);const res=await x.run();assert.equal(res.status,503);
-  const value=await res.json();assert.equal(value.ok,true,false);
+  const value=await res.json();assert.notEqual(value.ok,true);
  }
 });
