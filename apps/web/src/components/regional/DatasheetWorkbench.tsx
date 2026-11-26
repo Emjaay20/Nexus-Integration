@@ -46,7 +46,7 @@ export default function DatasheetWorkbench({selection,lines,canWrite=true}:{sele
   const data=new Blob([JSON.stringify(evidence,null,2)],{type:'application/json'});const url=URL.createObjectURL(data);
   const link=document.createElement('a');link.href=url;link.download='nexus-datasheet-evidence.json';link.click();URL.revokeObjectURL(url);
  }
- return <section className="result-section">
+ return <section id="nexus-datasheet-workbench" className="result-section">
   <h2>PDF datasheet intelligence &amp; citations</h2>
   <p>Upload a PDF text layer (up to 1.5 MB). The server processes at most 12 pages with local Poppler, returns bounded text and SHA-256 provenance, and deletes the temporary file. Documents remain only in this browser session. Scanned PDFs require separate OCR and are not supported.</p>
   <div style={{display:'flex',gap:10,flexWrap:'wrap'}}><button className="btn btn-secondary btn-sm" onClick={demo}>Load two synthetic datasheets</button>{documents.length>0&&<button className="btn btn-secondary btn-sm" onClick={exportJSON}>Export cited analysis JSON</button>}</div>
