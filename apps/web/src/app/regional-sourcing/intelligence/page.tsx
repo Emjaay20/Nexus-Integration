@@ -3,6 +3,7 @@ import Link from 'next/link';
 import DatasheetWorkbench from '@/components/regional/DatasheetWorkbench';
 import ResearchQueue from '@/components/regional/ResearchQueue';
 import ScheduleManager from '@/components/regional/ScheduleManager';
+import AgentWorkbench from '@/components/regional/AgentWorkbench';
 import {useEffect,useState} from 'react';
 import {COUNTRIES,type Country} from '@/lib/regional/model';
 import {syntheticEvidence,findings,groundedAnswer,coverage,extractDatasheetText,type EvidenceSnapshot,type Finding,type CopilotAnswer,type DatasheetCandidate} from '@/lib/regional/intelligence';
@@ -105,6 +106,7 @@ export default function Intelligence(){
     <button className="btn btn-primary" onClick={parseSpecs}>Extract review candidates</button>
     {specs.length>0?<div className="note" style={{marginTop:14}}>{specs.map(c=><p key={c.property}><strong>{c.property.replaceAll('_',' ')}:</strong> {c.value} · source line {c.line}<br/><small>Excerpt: {c.excerpt} · NOT verified</small></p>)}</div>:<p className="note">No extracted specifications yet. Unsupported formats and ambiguous text should remain unclassified.</p>}
    </section>
+   <AgentWorkbench selection={activeSelection} snapshot={snapshot} canWrite={dir?.role!=='viewer'}/>
    <DatasheetWorkbench selection={activeSelection&&snapshot.demo===false?{workspaceId:activeSelection.workspaceId,bomId:activeSelection.bomId,revision:activeSelection.revision}:null} lines={snapshot.lines} canWrite={dir?.role!=='viewer'}/>
    {activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false&&<ResearchQueue key={activeSelection.bomId+':'+activeSelection.revision+':'+activeSelection.country} selection={activeSelection} lines={snapshot.lines} suppliers={dir?.suppliers||[]} snapshot={snapshot}/>}
    {activeSelection&&dir?.role!=='viewer'&&snapshot.demo===false&&<ScheduleManager key={'schedule:'+activeSelection.bomId+':'+activeSelection.revision+':'+activeSelection.country} selection={activeSelection} lines={snapshot.lines} suppliers={dir?.suppliers||[]} snapshot={snapshot}/>} 
