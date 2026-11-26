@@ -23,7 +23,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: { default: "Nexus — Electronics Sourcing & Integration", template: "%s · Nexus" },
-  description: "Import your Bill of Materials, compare supplier offers, and understand sourcing risks in one connected workspace.",
+  description: "Born from an IoT engineering research challenge: explore Nexus, a Rust, Go and Next.js electronics sourcing platform with evidence-grounded decisions.",
 };
 
 export default function RootLayout({

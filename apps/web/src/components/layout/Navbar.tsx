@@ -10,6 +10,7 @@ const links = [
   ["BOM Importer", "/bom-importer"],
   ["Integrations", "/integration-hub"],
   ["Docs", "/docs"],
+  ["Why Nexus", "/case-study"],
 ];
 export function Navbar() {
   const pathname = usePathname();
@@ -73,8 +74,8 @@ export function Navbar() {
                 Sign in
               </Link>
             )}
-            <Link className="btn btn-primary btn-sm" href="/platform-core">
-              Open Studio <ArrowUpRight size={14} />
+            <Link className="btn btn-primary btn-sm" href="/#contact">
+              Contact builder <ArrowUpRight size={14} />
             </Link>
             <button
               ref={toggle}
