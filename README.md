@@ -2,6 +2,19 @@
 
 Software-defined electronics supply chain and PCBA quoting platform combining a **Rust (`actix-web`) monolith**, a **Go (`services/ingest`) concurrent distributor worker pool**, **explainable Rust heuristic scoring & 32-D similarity search**, and a **Next.js 16 multi-tenant web application**.
 
+
+## Why Nexus exists — a research-inspired engineering showcase
+
+Nexus grew from a real hardware procurement problem I encountered while building my postgraduate research project, **A Blockchain-Secure IoT Platform for Remote Patient Monitoring with Interpretable Health Forecasting**. Working with IoT components and embedded systems made it difficult to compare supplier coverage, landed costs, component identity and available evidence. Nexus explores this challenge through a polyglot Rust/Go/Next.js platform with conservative, traceable procurement recommendations.
+
+- [Why I built Nexus — engineering case study](https://nexus-integration.aetherhost.app/case-study)
+- [Whole-BOM demo](https://nexus-integration.aetherhost.app/regional-sourcing/planner)
+- [Evidence & human-approved agent](https://nexus-integration.aetherhost.app/regional-sourcing/intelligence)
+- [Architecture and proof boundaries](docs/platform/PORTFOLIO-STORY-FLOWMEET.md)
+- [Open the platform documentation](https://nexus-integration.aetherhost.app/docs)
+
+The hosted site also links to other work: [AetherHost](https://github.com/Emjaay20/AetherHost) for deployment engineering, [FlowMeet](https://github.com/Emjaay20/Flowmeet) for lead capture and scheduling, and [Smart Content Fetcher](https://github.com/Emjaay20/Smart-Crawler-Plugin) as a distinct crawler-plugin project. Their runtime responsibilities are independent. The FlowMeet visitor form is **off by default**, requiring a private project-specific API key and opt-in; the known shared founder calendar remains a fallback.
+
 ## Architecture Layout
 
 | Path | Runtime | Responsibilities |
