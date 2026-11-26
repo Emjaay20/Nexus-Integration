@@ -73,8 +73,8 @@ test('invalid topic is rejected without querying full text',async()=>{
 });
 test('private document page citation matches current active version and owner',async()=>{
  const hash='a'.repeat(64),document_id='52345678-1234-4321-8123-123456789abc';
- const x=mock({documents:[{document_id,line_index:0,name:'Controlled spec',sha256:hash,version:2,page_count:2,truncated:false}],
-  hits:[{document_id,line_index:0,name:'Controlled spec',sha256:hash,version:2,page_number:1,excerpt:'Operating voltage [3.0] to 3.6 V',rank:0.6}]});
+ const x=mock({documents:[{document_id,line_index:0,name:'Controlled spec',mpn:'ESP32-WROOM-32E',sha256:hash,version:2,page_count:2,truncated:false}],
+  hits:[{document_id,line_index:0,name:'Controlled spec',mpn:'ESP32-WROOM-32E',sha256:hash,version:2,page_number:1,excerpt:'Operating voltage [3.0] to 3.6 V',rank:0.6}]});
  const response=await x.get({topic:'operating voltage'});
  assert.equal(response.status,200);
  const data=await response.json();
@@ -86,7 +86,7 @@ test('private document page citation matches current active version and owner',a
 });
 test('detached document provenance fails closed without fabricating an action',async()=>{
  const hash='a'.repeat(64),document_id='52345678-1234-4321-8123-123456789abc';
- const x=mock({documents:[{document_id,line_index:0,name:'Controlled spec',sha256:hash,version:1,page_count:2,truncated:false}],
+ const x=mock({documents:[{document_id,line_index:0,name:'Controlled spec',mpn:'ESP32-WROOM-32E',sha256:hash,version:1,page_count:2,truncated:false}],
   hits:[{document_id,line_index:0,name:'Controlled spec',sha256:'b'.repeat(64),version:1,page_number:1,excerpt:'foo',rank:0.4}]});
  const response=await x.get({topic:'operating voltage'});assert.equal(response.status,503);
  const data=await response.json();assert.match(data.error,/unavailable/);
@@ -96,4 +96,14 @@ test('no external crawl, model inference, payment or write API is called',async(
  assert.equal(x.state.queries.some(q=>/\bINSERT\b|\bUPDATE\b|\bDELETE\b/.test(q.sql)),false);
  const data=await response.json();
  assert.ok(data.plan.tasks.every(t=>t.approvalRequired));
+});
+
+test('stale datasheet from another MPN at the same BOM line is excluded',async()=>{
+ const hash='a'.repeat(64),document_id='52345678-1234-4321-8123-123456789abc';
+ const x=mock({documents:[{document_id,line_index:0,name:'Old part document',mpn:'UNRELATED-MPN',sha256:hash,version:1,page_count:1,truncated:false}],
+  hits:[{document_id,line_index:0,name:'Old part document',mpn:'UNRELATED-MPN',sha256:hash,version:1,page_number:1,excerpt:'Operating voltage: 5 V',rank:0.9}]});
+ const response=await x.get({topic:'operating voltage'});assert.equal(response.status,200);
+ const body=await response.json();
+ assert.equal(body.documents.length,0);assert.equal(body.hits.length,0);assert.equal(body.plan.documentsIndexed,0);
+ assert.ok(body.plan.tasks.some(t=>t.action==='upload_datasheet'));
 });
