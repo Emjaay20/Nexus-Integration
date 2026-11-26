@@ -13,7 +13,7 @@ export type AgentHit={
   lineIndex:number;documentId:string;document:string;sha256:string;version:number;
   page:number;excerpt:string;citation:string;rank:number;
 };
-export type AgentAction='obtain_quote'|'revalidate_quote'|'verify_research'|'upload_datasheet'|'review_document';
+export type AgentAction='obtain_quote'|'revalidate_quote'|'verify_research'|'upload_datasheet'|'review_document'|'diversify_supplier';
 export type AgentPriority='critical'|'high'|'medium'|'low';
 export type AgentEvidenceStrength='customer_reported_quote'|'unverified_research'|'document_observation'|'none';
 export type AgentTask={
@@ -87,6 +87,10 @@ export function planResearch(snapshot:EvidenceSnapshot,documents:AgentDocument[]
    create('revalidate_quote','Review incomplete or expired quote for '+line.mpn,
     'Existing customer quotation lacks confirmed current terms. Recheck exact MPN, quantity, stock, shipping, fees, FX and expiration.',9,'regional_sourcing',sourceIds(expired));
   }
+  if(complete.length&&new Set(complete.map(r=>r.supplier.trim().toUpperCase())).size===1){
+   create('diversify_supplier','Review alternate supplier coverage for '+line.mpn,
+    'Only one distinct supplier has a complete customer-reported quotation for this BOM line. Consider obtaining a second confirmed source; this does not prove the first supplier is unreliable.',18,'regional_sourcing',sourceIds(complete));
+  }
   if(research.length){
    create('verify_research','Verify supplier research for '+line.mpn,
     'Source observations and distributor-worker results are candidates only, not authenticated supplier offers. Use a permissioned exact product URL and request approval before crawling.',0,'research_queue',sourceIds(research));
@@ -117,7 +121,7 @@ export function answerAgent(plan:AgentPlan,question:string){
  if(typeof question!=='string'||!question.trim()||question.length>240)throw Error('Question must contain 1–240 characters');
  const q=question.toLowerCase();
  const related=/datasheet|component|compatib|electrical|pdf/.test(q)?plan.tasks.filter(t=>['upload_datasheet','review_document'].includes(t.action)):
-  /research|crawl|supplier|source/.test(q)?plan.tasks.filter(t=>t.action==='verify_research'||t.action==='obtain_quote'):
+  /research|crawl|supplier|source/.test(q)?plan.tasks.filter(t=>t.action==='verify_research'||t.action==='obtain_quote'||t.action==='diversify_supplier'):
   /price|quote|cost|budget/.test(q)?plan.tasks.filter(t=>t.action==='obtain_quote'||t.action==='revalidate_quote'):plan.tasks;
  const actions=related.slice(0,8);
  return {question,summary:plan.summary,actions,disclaimer:'This is a read-only review plan. Citations refer only to available evidence and page excerpts. No purchase, crawl, price confirmation or engineering substitution has occurred.'};
