@@ -14,8 +14,8 @@ function mock(options={}){
   if(sql.includes('FROM platform_boms'))return {rows:state.missing?[]:[{name:'Controlled BOM',revision:state.stale?2:1,items:[{partNumber:'ESP32-WROOM-32E',manufacturer:'Espressif',quantity:5}]}]};
   if(sql.includes('FROM platform_regional_sourcing'))return {rows:state.sources||[]};
   if(sql.includes('FROM platform_jobs'))return {rows:[]};
+  if(sql.includes('JOIN platform_knowledge_pages'))return {rows:state.hits||[]};
   if(sql.includes('FROM platform_knowledge_documents'))return {rows:state.documents||[]};
-  if(sql.includes('FROM platform_knowledge_pages'))return {rows:state.hits||[]};
   throw Error('Unexpected SQL: '+sql);
  };
  function load(file){
