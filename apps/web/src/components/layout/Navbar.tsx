@@ -74,9 +74,13 @@ export function Navbar() {
                 Sign in
               </Link>
             )}
-            <Link className="btn btn-primary btn-sm" href="/#contact">
+            <a
+              className="btn btn-primary btn-sm"
+              href="https://flowmeet.aetherhost.app/book/aetherhost"
+              data-flowmeet-open
+            >
               Contact builder <ArrowUpRight size={14} />
-            </Link>
+            </a>
             <button
               ref={toggle}
               className="mobile-toggle"

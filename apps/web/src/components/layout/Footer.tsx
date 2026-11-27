@@ -10,7 +10,7 @@ export function Footer() {
         <div className="footer-links">
           <Link href="/docs">Documentation</Link>
           <Link href="/case-study">Why I built Nexus</Link>
-          <Link href="/#contact">Contact via FlowMeet</Link>
+          <a href="https://flowmeet.aetherhost.app/book/aetherhost" data-flowmeet-open>Contact via FlowMeet</a>
           <Link href="/api-reference">API reference</Link>
           <Link href="/status">System status</Link>
           <a href="https://github.com/Emjaay20/Nexus-Integration" target="_blank" rel="noopener noreferrer">Source code</a>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import Script from "next/script";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { AuthProvider } from "@/components/auth/AuthProvider";
@@ -45,6 +46,13 @@ export default function RootLayout({
             </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
+        <Script
+          id="flowmeet-widget"
+          src="https://flowmeet.aetherhost.app/widget.js"
+          strategy="afterInteractive"
+          data-slug="aetherhost"
+          data-no-button="true"
+        />
       </body>
     </html>
   );

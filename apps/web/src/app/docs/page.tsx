@@ -176,7 +176,7 @@ export default function Docs() {
             Nexus slug only after provisioning it in FlowMeet. This is a portfolio integration,
             not an assertion that lead routing or appointment delivery has been validated for Nexus.
           </div>
-          <p><Link href="/#contact">Contact the builder on Nexus →</Link></p>
+          <p><a href="https://flowmeet.aetherhost.app/book/aetherhost" data-flowmeet-open>Contact the builder through FlowMeet →</a></p>
           <h2 id="api">API at a glance</h2>
           <div className="table-wrap">
             <table>

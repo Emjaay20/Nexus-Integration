@@ -61,12 +61,9 @@ const ecosystem = [
 export default function Home() {
   let book = FALLBACK_BOOKING_URL;
   try { book = bookingUrl(process.env.NEXUS_FLOWMEET_BOOKING_URL); } catch { /* Known shared founder calendar fallback. */ }
-  const widget = process.env.NEXUS_FLOWMEET_WIDGET_ENABLED === "true";
   const capture = captureConfigured();
   return (
     <main id="main-content">
-      {widget && <Script id="nexus-flowmeet-widget" src="https://flowmeet.aetherhost.app/widget.js"
-        strategy="afterInteractive" data-slug={bookingSlug(book)} data-no-button="true" />}
       <div className="wrap">
         <section className="hero story-hero">
           <div className="hero-label">A founder-built engineering case study · Nigeria-first electronics sourcing</div>
@@ -88,7 +85,7 @@ export default function Home() {
             <Link className="btn btn-secondary" href="/regional-sourcing/planner">
               <FileSpreadsheet size={17} /> Try the BOM planner
             </Link>
-            <a className="btn btn-secondary" href={book} data-flowmeet-open target="_blank" rel="noopener noreferrer">
+            <a className="btn btn-secondary" href={book} data-flowmeet-open>
               <CalendarDays size={17} /> Talk through FlowMeet
             </a>
           </div>

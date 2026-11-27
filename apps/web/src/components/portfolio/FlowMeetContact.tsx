@@ -33,7 +33,7 @@ export default function FlowMeetContact({bookingHref,enabled}:{bookingHref:strin
    <div className="eyebrow">CONNECT THE WORK</div>
    <h2>Discuss Nexus, the architecture, or an engineering role.</h2>
    <p>I built FlowMeet for lead qualification, routing and scheduling. Nexus uses that same system for enquiries and booking, showing how independently developed projects can work together.</p>
-   <a href={bookingHref} data-flowmeet-open className="btn btn-primary" target="_blank" rel="noopener noreferrer">
+   <a href={bookingHref} data-flowmeet-open className="btn btn-primary">
     Book a discussion through FlowMeet
    </a>
    <p className="story-disclaimer">Booking opens FlowMeet&apos;s shared founder calendar. A meeting is confirmed only by its booking provider.</p>

@@ -116,7 +116,7 @@ export default function CaseStudy(){
     <h2>Interested in how I built and tested it?</h2>
     <p>I can walk through the Rust architecture, tenant boundaries, sourcing algorithms, CI evidence and design trade-offs in a technical interview.</p>
    </div>
-   <Link className="btn btn-primary" href="/#contact">Contact me through FlowMeet <ArrowUpRight size={17}/></Link>
+   <a className="btn btn-primary" href="https://flowmeet.aetherhost.app/book/aetherhost" data-flowmeet-open>Contact me through FlowMeet <ArrowUpRight size={17}/></a>
   </section>
  </main>;
 }
