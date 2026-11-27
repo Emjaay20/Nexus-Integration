@@ -51,10 +51,10 @@ const ecosystem = [
     repo: "https://github.com/Emjaay20/Flowmeet",
   },
   {
-    title: "Smart Content Fetcher",
-    label: "Related web-data engineering",
-    description: "A separate WordPress crawling project demonstrating ingestion and content processing. Nexus's own SmartCrawl research workflow remains governed by supplier-specific permissions.",
-    href: "https://github.com/Emjaay20/Smart-Crawler-Plugin",
+    title: "SmartCrawler",
+    label: "Data ingestion & crawler engine",
+    description: "A dedicated web crawling and content extraction engine hosted on AetherHost. It powers Nexus from behind the scenes by asynchronously retrieving component datasheets, technical specs, and supplier catalog evidence with strict egress and SSRF controls.",
+    href: "https://smart-crawler.aetherhost.app/",
     repo: "https://github.com/Emjaay20/Smart-Crawler-Plugin",
   },
 ];

@@ -13,7 +13,7 @@ Nexus grew from a real hardware procurement problem I encountered while building
 - [Architecture and proof boundaries](docs/platform/PORTFOLIO-STORY-FLOWMEET.md)
 - [Open the platform documentation](https://nexus-integration.aetherhost.app/docs)
 
-The hosted site also links to other work: [AetherHost](https://github.com/Emjaay20/AetherHost) for deployment engineering, [FlowMeet](https://github.com/Emjaay20/Flowmeet) for lead capture and scheduling, and [Smart Content Fetcher](https://github.com/Emjaay20/Smart-Crawler-Plugin) as a distinct crawler-plugin project. Their runtime responsibilities are independent. The FlowMeet visitor form is **off by default**, requiring a private project-specific API key and opt-in; the known shared founder calendar remains a fallback.
+The hosted site also links to other work: [AetherHost](https://github.com/Emjaay20/AetherHost) for deployment engineering, [FlowMeet](https://github.com/Emjaay20/Flowmeet) for lead capture and scheduling, and [SmartCrawler](https://smart-crawler.aetherhost.app/) as a dedicated crawling and web content ingestion service powering Nexus's background catalog and datasheet research. Their runtime responsibilities are independent. The FlowMeet visitor form is **off by default**, requiring a private project-specific API key and opt-in; the known shared founder calendar remains a fallback.
 
 ## Architecture Layout
 

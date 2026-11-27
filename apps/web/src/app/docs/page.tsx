@@ -152,14 +152,14 @@ export default function Docs() {
             engineering practices rather than a fabricated single database or unified runtime.
             <strong> AetherHost</strong> provides a deployment and infrastructure case study.
             <strong> FlowMeet</strong> provides the separately authenticated lead-management and
-            booking handoff used by Nexus enquiries. My separate <strong>Smart Content Fetcher</strong>
-            plugin demonstrates adjacent web-data processing work; it is not the same deployment
-            as the permission-controlled SmartCrawl research workflow inside Nexus.
+            booking handoff used by Nexus enquiries. My separate <strong>SmartCrawler</strong>
+            service (hosted on AetherHost) powers Nexus from behind the scenes by asynchronously
+            ingesting component datasheets, technical specs, and catalog evidence via permission-governed research jobs.
           </p>
           <p>
             <a href="https://github.com/Emjaay20/AetherHost" target="_blank" rel="noopener noreferrer">AetherHost source ↗</a> &nbsp;
             <a href="https://github.com/Emjaay20/Flowmeet" target="_blank" rel="noopener noreferrer">FlowMeet source ↗</a> &nbsp;
-            <a href="https://github.com/Emjaay20/Smart-Crawler-Plugin" target="_blank" rel="noopener noreferrer">Smart Content Fetcher source ↗</a> &nbsp;
+            <a href="https://smart-crawler.aetherhost.app/" target="_blank" rel="noopener noreferrer">SmartCrawler service ↗</a> &nbsp;
             <a href="https://yusufsaka.dev" target="_blank" rel="noopener noreferrer">Engineering portfolio ↗</a>
           </p>
           <h2 id="contact">Contact and booking through FlowMeet</h2>

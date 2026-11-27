@@ -13,7 +13,7 @@ The public homepage and `/case-study` now put the original problem first, explai
 | Nexus Integration | https://github.com/Emjaay20/Nexus-Integration | This procurement intelligence platform, software and tests |
 | AetherHost | https://github.com/Emjaay20/AetherHost | Separate hosting/control-plane platform; deployment infrastructure used for the hosted Nexus showcase |
 | FlowMeet | https://github.com/Emjaay20/Flowmeet | Separate lead intake and booking product. Used for Nexus visitor contact when configured |
-| Smart Content Fetcher | https://github.com/Emjaay20/Smart-Crawler-Plugin | Related standalone WordPress web-data tooling; **not** the same runtime as Nexus's permission-gated SmartCrawl |
+| SmartCrawler | https://smart-crawler.aetherhost.app/ | Dedicated crawling & content-retrieval engine on AetherHost; powers Nexus's permission-gated SmartCrawl research workflow behind the scenes |
 | Portfolio | https://yusufsaka.dev | Builder's engineering website and other case studies |
 
 These links demonstrate an integrated portfolio with distinct services, not a fictitious shared monolith or unverified supplier agreements.
