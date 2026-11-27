@@ -28,5 +28,5 @@ spec:
     image:
       repository: ghcr.io/emjaay20/nexus-integration
       # Promotion replaces this placeholder with the digest of the tested image.
-      digest: "sha256:REPLACE_WITH_TESTED_DIGEST"
+      digest: "sha256:bbdf6e23baea75bdbcfb18d144eca9fbc015dc36898b252f70df61483b928744"
     runtimeSecret: nexus-runtime
